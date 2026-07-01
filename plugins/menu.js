@@ -1,9 +1,6 @@
 import config from '../config.js'
 import chalk from 'chalk'
 
-// Importamos la lista global de comandos
-import { commands } from '../index.js'
-
 function obtenerSaludo() {
     const hora = new Date().getHours()
     if (hora >= 5 && hora < 12) return '🌅 ¡Buenos días'
@@ -13,13 +10,13 @@ function obtenerSaludo() {
 
 let handler = {}
 
-handler.run = async (sock, m, args) => {
+handler.run = async (sock, m, args, { commands }) => {
     const from = m.key.remoteJid
     const nombreUsuario = m.pushName || 'Capitán'
 
     await sock.sendMessage(from, { react: { text: '🦈', key: m.key } })
 
-    // Leer desde la lista global
+    // Leemos la lista que se pasa como parámetro
     const listaComandos = Array.from(commands.values())
     if (listaComandos.length === 0) {
         return sock.sendMessage(from, {
@@ -89,7 +86,7 @@ handler.run = async (sock, m, args) => {
 
     try {
         await sock.sendMessage(from, {
-            image: { url: 'https://files.catbox.moe/273uw0.png' }, // Cambia por tu enlace
+            image: { url: 'https://files.catbox.moe/273uw0.png' }, // Pon tu enlace real
             caption: texto
         }, { quoted: m })
     } catch (err) {
