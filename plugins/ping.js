@@ -1,7 +1,10 @@
 import config from '../config.js'
 
-const handler = async ({ sock, m, from }) => {
+let handler = {}
+
+handler.run = async (sock, m, args) => {
     const start = Date.now()
+    const from = m.key.remoteJid
 
     // ⚡ Reacción inicial
     await sock.sendMessage(from, {
@@ -10,7 +13,7 @@ const handler = async ({ sock, m, from }) => {
 
     const speed = Date.now() - start
 
-    // 🚀 Respuesta con diseño y nombre del bot
+    // 🚀 Respuesta con diseño
     await sock.sendMessage(from, {
         text: `╭━━━━━━━━━━━━━┓
 ┃  ⚡ *P O N G*  ⚡
@@ -23,8 +26,8 @@ const handler = async ({ sock, m, from }) => {
     }, { quoted: m })
 }
 
-// ⚙️ Configuración del comando
-handler.command = ['p', 'ping']
+// ⚙️ Configuración
+handler.command = ['p', 'ping', 'velocidad']
 handler.help = ['p']
 handler.tags = ['informacion']
 handler.menu = true
