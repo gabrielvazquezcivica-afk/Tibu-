@@ -2,6 +2,7 @@ import { connect } from './lib/connection.js'
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
+import fetch from 'node-fetch'
 import chalk from 'chalk'
 import config from './config.js'
 
@@ -9,7 +10,44 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 let commands = new Map()
 
-// Cargar plugins, solo mostrar total
+// ───── QUOTED PRO ─────
+const sistema = async (sock, from, titulo = config.BOT_NAME + ' 🤖') => {
+  let nombreGrupo = 'Chat'
+  let thumbnail = null
+
+  try {
+    if (from.endsWith('@g.us')) {
+      const metadata = await sock.groupMetadata(from)
+      nombreGrupo = metadata.subject || 'Grupo'
+
+      try {
+        const pp = await sock.profilePictureUrl(from, 'image')
+        const res = await fetch(pp)
+        const buffer = await res.arrayBuffer()
+        thumbnail = Buffer.from(buffer)
+      } catch {}
+    }
+  } catch {}
+
+  return {
+    key: {
+      fromMe: false,
+      participant: '0@s.whatsapp.net',
+      remoteJid: 'status@broadcast'
+    },
+    message: {
+      extendedTextMessage: {
+        text: titulo,
+        title: config.BOT_NAME,
+        description: nombreGrupo,
+        jpegThumbnail: thumbnail,
+        previewType: 0
+      }
+    }
+  }
+}
+
+// Cargar plugins
 async function loadPlugins() {
     commands.clear()
     const pluginsDir = path.join(__dirname, 'plugins')
@@ -29,7 +67,6 @@ async function loadPlugins() {
                     commands.set(cmd.toLowerCase(), handler)
                 }
                 totalComandos += handler.help.length
-                // Solo mensaje sin listar comandos
                 console.log(chalk.greenBright(`✅ ${file}`))
             }
         } catch (err) {
@@ -69,6 +106,69 @@ async function startBot() {
 
         await loadPlugins()
 
+        // 📢 DETECCIÓN DE CAMBIOS EN GRUPOS
+        sock.ev.on('groups.update', async (eventos) => {
+            for (const ev of eventos) {
+                const { id, subject, desc, announce, restrict, author } = ev
+                let mensaje = ''
+
+                // Obtener nombre de quien hizo el cambio
+                let quien = author ? `@${author.split('@')[0]}` : 'Desconocido'
+
+                if (subject) {
+                    mensaje = `\`📝 NOMBRE DEL GRUPO CAMBIADO\`
+Nuevo: \`${subject}\`
+Por: \`${quien}\``
+                }
+                if (desc) {
+                    mensaje = `\`ℹ️ DESCRIPCIÓN ACTUALIZADA\`
+Por: \`${quien}\``
+                }
+                if (typeof announce !== 'undefined') {
+                    const estado = announce ? '🔒 CERRADO (solo admins envían)' : '🔓 ABIERTO (todos envían)'
+                    mensaje = `\`🔧 ESTADO DE ENVÍO CAMBIADO\`
+Ahora: \`${estado}\`
+Por: \`${quien}\``
+                }
+                if (typeof restrict !== 'undefined') {
+                    const permiso = restrict ? '🛡️ SOLO ADMIN EDITAN' : '✏️ TODOS PUEDEN EDITAR'
+                    mensaje = `\`⚙️ PERMISOS DE EDICIÓN CAMBIADOS\`
+Ahora: \`${permiso}\`
+Por: \`${quien}\``
+                }
+
+                if (mensaje) {
+                    const citado = await sistema(sock, id, '🔔 NOTIFICACIÓN DE GRUPO')
+                    await sock.sendMessage(id, { text: mensaje, quoted: citado })
+                }
+            }
+        })
+
+        // 🤝 DETECTAR CAMBIOS DE ADMINISTRADORES
+        sock.ev.on('group-participants.update', async (ev) => {
+            const { id, participants, action, author } = ev
+            let mensaje = ''
+            let quien = author ? `@${author.split('@')[0]}` : 'Desconocido'
+            let usuarios = participants.map(p => `@${p.split('@')[0]}`).join(', ')
+
+            if (action === 'promote') {
+                mensaje = `\`👑 NUEVO ADMINISTRADOR\`
+Usuarios: \`${usuarios}\`
+Por: \`${quien}\``
+            }
+            if (action === 'demote') {
+                mensaje = `\`📉 SE QUITÓ DE ADMIN\`
+Usuarios: \`${usuarios}\`
+Por: \`${quien}\``
+            }
+
+            if (mensaje) {
+                const citado = await sistema(sock, id, '🔔 NOTIFICACIÓN DE GRUPO')
+                await sock.sendMessage(id, { text: mensaje, quoted: citado, mentions: participants })
+            }
+        })
+
+        // 📩 MENSAJES SOLO CON PREFIJO
         sock.ev.on('messages.upsert', async ({ messages, type }) => {
             if (type !== 'notify') return
 
@@ -105,6 +205,7 @@ async function startBot() {
             await runCommand(sock, m, comando, args)
         })
 
+        // 🔄 RECONEXIÓN
         sock.ev.on('connection.update', ({ connection }) => {
             if (connection === 'close') {
                 console.log(chalk.redBright('\n🔌 Conexión perdida. Reintentando en 5 segundos...\n'))
