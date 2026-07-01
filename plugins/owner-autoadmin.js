@@ -33,7 +33,7 @@ handler.run = async (sock, m, args) => {
         }, { quoted: m })
     }
 
-    // Dueños fijos + agregados
+    // Verificar dueños fijos + agregados
     const fijos = [...config.owner.map(limpiarNum), ...config.ownerLid.map(limpiarNum)]
     const extras = leerOwnersExtras().map(o => limpiarNum(o.number))
     const todosDueños = [...fijos, ...extras]
@@ -56,24 +56,11 @@ handler.run = async (sock, m, args) => {
     }
 
     const participantes = metadata.participants || []
-    const datosUsuario = participantes.find(p => limpiarNum(p.id) === senderNum)
 
-    const yaEsAdmin =
-        datosUsuario?.admin === 'admin' ||
-        datosUsuario?.admin === 'superadmin'
-
-    if (yaEsAdmin) {
-        await sock.sendMessage(from, { react: { text: '✅', key: m.key } })
-        return sock.sendMessage(from, {
-            text: '`✅ Ya eres administrador de estas aguas`'
-        }, { quoted: m })
-    }
-
+    // ✅ PRIMERO: Verificar si el bot es admin
     const botId = limpiarNum(sock.user.id)
     const datosBot = participantes.find(p => limpiarNum(p.id) === botId)
-    const botEsAdmin =
-        datosBot?.admin === 'admin' ||
-        datosBot?.admin === 'superadmin'
+    const botEsAdmin = datosBot?.admin === 'admin' || datosBot?.admin === 'superadmin'
 
     if (!botEsAdmin) {
         await sock.sendMessage(from, { react: { text: '⚠️', key: m.key } })
@@ -82,6 +69,18 @@ handler.run = async (sock, m, args) => {
         }, { quoted: m })
     }
 
+    // ✅ SEGUNDO: Verificar si tú ya eres admin
+    const datosUsuario = participantes.find(p => limpiarNum(p.id) === senderNum)
+    const yaEsAdmin = datosUsuario?.admin === 'admin' || datosUsuario?.admin === 'superadmin'
+
+    if (yaEsAdmin) {
+        await sock.sendMessage(from, { react: { text: '✅', key: m.key } })
+        return sock.sendMessage(from, {
+            text: '`✅ Ya eres administrador de estas aguas`'
+        }, { quoted: m })
+    }
+
+    // Dar admin
     await sock.sendMessage(from, { react: { text: '👑', key: m.key } })
     try {
         await sock.groupParticipantsUpdate(from, [sender], 'promote')
