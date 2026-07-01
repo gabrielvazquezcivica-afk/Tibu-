@@ -92,7 +92,6 @@ async function loadPlugins() {
                     commands.set(cmd.toLowerCase(), handler)
                 }
                 totalComandos += handler.help.length
-                console.log(chalk.greenBright(`✅ ${file}`))
             }
         } catch (err) {
             console.log(chalk.redBright(`❌ ${file} → ${err.message}`))
