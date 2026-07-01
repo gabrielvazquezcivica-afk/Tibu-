@@ -1,45 +1,47 @@
 import config from '../config.js'
 
-function limpiar(n) {
-    return n.replace(/[:].*@/, '@').trim()
+function limpiarNum(n) {
+    return n.replace(/[^0-9]/g, '')
 }
 
 let handler = {}
 
-handler.run = async (sock, m, args) => {
+handler.run = async (sock, m, args, { isAdmin, isBotAdmin, limpiarJid }) => {
     const from = m.key.remoteJid
-    const remitente = limpiar(m.key.participant || m.key.remoteJid)
-    const remNum = remitente.replace(/[^0-9]/g, '')
+    const remitente = limpiarJid(m.key.participant || m.key.remoteJid)
+    const remNum = limpiarNum(remitente)
 
-    // Solo dueños
+    // Solo dueños pueden usar
     const esDueno =
-        config.owner.some(n => limpiar(n) === remNum) ||
-        config.ownerLid.some(l => limpiar(l) === remNum)
+        config.owner.some(n => limpiarNum(n) === remNum) ||
+        config.ownerLid.some(l => limpiarNum(l) === remNum)
 
     if (!esDueno) {
         await sock.sendMessage(from, { react: { text: '🦈', key: m.key } })
-        return sock.sendMessage(from, { text: '`🚫 Solo capitanes pueden usarlo`' }, { quoted: m })
-    }
-
-    if (!from.endsWith('@g.us')) {
-        await sock.sendMessage(from, { react: { text: '🌊', key: m.key } })
-        return sock.sendMessage(from, { text: '`🌊 Solo funciona en grupos`' }, { quoted: m })
-    }
-
-    const botId = limpiar(sock.user.id)
-    const metadata = await sock.groupMetadata(from)
-    const participantes = metadata.participants.map(p => ({ id: limpiar(p.id), admin: p.admin }))
-
-    // Verificación limpia
-    const botEsAdmin = participantes.some(p => p.id === botId && p.admin)
-    if (!botEsAdmin) {
-        await sock.sendMessage(from, { react: { text: '⚠️', key: m.key } })
         return sock.sendMessage(from, {
-            text: '`⚠️ No tengo rango de capitán aquí`'
+            text: '`🚫 Solo los capitanes pueden usar este comando`'
         }, { quoted: m })
     }
 
-    const yaEsAdmin = participantes.some(p => p.id === remitente && p.admin)
+    // Solo en grupos
+    if (!from.endsWith('@g.us')) {
+        await sock.sendMessage(from, { react: { text: '🌊', key: m.key } })
+        return sock.sendMessage(from, {
+            text: '`🌊 Este comando solo funciona en grupos`'
+        }, { quoted: m })
+    }
+
+    // Verificar si el bot es admin
+    const botEsAdmin = await isBotAdmin(sock, from)
+    if (!botEsAdmin) {
+        await sock.sendMessage(from, { react: { text: '⚠️', key: m.key } })
+        return sock.sendMessage(from, {
+            text: '`⚠️ No tengo rango de capitán aquí, no puedo asignar rangos`'
+        }, { quoted: m })
+    }
+
+    // Verificar si ya es admin
+    const yaEsAdmin = await isAdmin(sock, from, remitente)
     if (yaEsAdmin) {
         await sock.sendMessage(from, { react: { text: '✅', key: m.key } })
         return sock.sendMessage(from, {
@@ -47,6 +49,7 @@ handler.run = async (sock, m, args) => {
         }, { quoted: m })
     }
 
+    // Dar admin solo al que ejecutó
     try {
         await sock.groupParticipantsUpdate(from, [remitente], 'promote')
         await sock.sendMessage(from, { react: { text: '👑', key: m.key } })
