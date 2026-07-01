@@ -28,7 +28,7 @@ handler.run = async (sock, m, args) => {
     const remitente = m.key.participant || m.key.remoteJid
     const remNum = limpiar(remitente)
 
-    // Verificar dueño por número o lid
+    // Verificar dueño
     const esDueno =
         config.owner.some(n => limpiar(n) === remNum) ||
         config.ownerLid.some(l => limpiar(l) === remNum)
@@ -40,19 +40,19 @@ handler.run = async (sock, m, args) => {
 
     let usuarioJid, numero, nombre
 
-    // ✅ DETECTA RESPUESTA CORRECTAMENTE
-    if (m.quoted && m.quoted.key && m.quoted.sender) {
-        usuarioJid = m.quoted.sender
+    // DETECTA RESPUESTA
+    if (m.quoted && m.quoted.key) {
+        usuarioJid = m.quoted.key.remoteJid || m.quoted.participant
         numero = limpiar(usuarioJid)
         nombre = args.join(' ').trim() || m.quoted.pushName || `Capitán ${numero}`
     }
-    // ✅ DETECTA MENCIÓN
-    else if (m.mentions && m.mentions.length > 0) {
-        usuarioJid = m.mentions[0]
+    // DETECTA MENCIÓN
+    else if (m.message?.extendedTextMessage?.contextInfo?.mentionedJid?.length > 0) {
+        usuarioJid = m.message.extendedTextMessage.contextInfo.mentionedJid[0]
         numero = limpiar(usuarioJid)
         nombre = args.slice(1).join(' ').trim() || `Capitán ${numero}`
     }
-    // ✅ DETECTA NÚMERO ESCRITO
+    // DETECTA NÚMERO
     else if (args[0]) {
         numero = limpiar(args[0])
         usuarioJid = `${numero}@s.whatsapp.net`
@@ -61,7 +61,7 @@ handler.run = async (sock, m, args) => {
     else {
         await sock.sendMessage(from, { react: { text: '🌊', key: m.key } })
         return sock.sendMessage(from, {
-            text: '`🌊 Responde a un mensaje, menciona o pon el número`\nEj: .addowner @Nombre',
+            text: '`🌊 Responde, menciona o escribe el número`\nEj: .addowner @Nombre',
             quoted: m
         })
     }
@@ -80,8 +80,8 @@ handler.run = async (sock, m, args) => {
     await sock.sendMessage(from, { react: { text: '🏴‍☠️', key: m.key } })
     await sock.sendMessage(from, {
         text: `\`🌊 NUEVO CAPITÁN AGREGADO 🦈\`\nNombre: ${nombre}\nNúmero: @${numero}\n\n> ${config.BOT_NAME}`,
-        mentions: [usuarioJid] // ✅ MENCIÓN CORRECTA
-    }, { quoted: m })
+        mentions: [usuarioJid]
+    }, { quoted: m }) // <-- AQUÍ OBLIGA A RESPONDER AL MENSAJE
 }
 
 handler.command = ['addowner', 'nuevocapitan']
