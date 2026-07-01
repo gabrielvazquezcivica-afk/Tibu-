@@ -10,88 +10,100 @@ function obtenerSaludo() {
 
 let handler = {}
 
-handler.run = async (sock, m, args, { commands }) => {
+handler.run = async (sock, m, args) => {
     const from = m.key.remoteJid
     const nombreUsuario = m.pushName || 'Capitán'
 
     await sock.sendMessage(from, { react: { text: '🦈', key: m.key } })
 
-    // Leemos la lista que se pasa como parámetro
-    const listaComandos = Array.from(commands.values())
-    if (listaComandos.length === 0) {
-        return sock.sendMessage(from, {
-            text: '`❌ No hay comandos cargados en este momento`'
-        }, { quoted: m })
-    }
+    try {
+        // Leemos directamente desde index sin modificarlo
+        const indexMod = await import('../index.js')
+        const commands = indexMod.commands
 
-    const ordenTags = [
-        'información',
-        'on-off',
-        'grupo',
-        'descargas',
-        'buscador',
-        'herramientas',
-        'diversión',
-        'owner',
-        'otros'
-    ]
+        if (!commands || commands.size === 0) {
+            return sock.sendMessage(from, {
+                text: '`❌ No hay comandos cargados en este momento`'
+            }, { quoted: m })
+        }
 
-    const grupos = {}
-    listaComandos.forEach(cmd => {
-        let tag = cmd.tags?.[0]?.toLowerCase() || 'otros'
-        if (!grupos[tag]) grupos[tag] = []
-        grupos[tag].push(cmd)
-    })
+        const listaComandos = Array.from(commands.values())
 
-    let texto = `╭━━━━━━━━━━━━━━━━━━━━━━╮
+        const ordenTags = [
+            'información',
+            'on-off',
+            'grupo',
+            'descargas',
+            'buscador',
+            'herramientas',
+            'diversión',
+            'owner',
+            'otros'
+        ]
+
+        const grupos = {}
+        listaComandos.forEach(cmd => {
+            let tag = cmd.tags?.[0]?.toLowerCase() || 'otros'
+            if (!grupos[tag]) grupos[tag] = []
+            grupos[tag].push(cmd)
+        })
+
+        let texto = `╭━━━━━━━━━━━━━━━━━━━━━━╮
 ┃ 🦈 ${config.BOT_NAME} 🦈
 ┃ 👑 Dueño: ${config.OWNER_NAME || 'Desconocido'}
 ┃ ${obtenerSaludo()}, ${nombreUsuario}!
 ┃ ⚓ Prefijo: ${config.PREFIX}
 ╰━━━━━━━━━━━━━━━━━━━━━━╯\n\n`
 
-    ordenTags.forEach(tag => {
-        if (!grupos[tag]) return
-        texto += `╭━━━〔 ${tag.toUpperCase()} 〕━━━⬣\n`
-        grupos[tag].forEach(cmd => {
-            cmd.help.forEach(ayuda => {
-                if (ayuda.includes(' ')) {
-                    const [cmdBase, ...parametros] = ayuda.split(' ')
-                    texto += `┃ ${config.PREFIX}${cmdBase} \`${parametros.join(' ')}\`\n`
-                } else {
-                    texto += `┃ ${config.PREFIX}${ayuda}\n`
-                }
+        ordenTags.forEach(tag => {
+            if (!grupos[tag]) return
+            texto += `╭━━━〔 ${tag.toUpperCase()} 〕━━━⬣\n`
+            grupos[tag].forEach(cmd => {
+                cmd.help.forEach(ayuda => {
+                    if (ayuda.includes(' ')) {
+                        const [cmdBase, ...parametros] = ayuda.split(' ')
+                        texto += `┃ ${config.PREFIX}${cmdBase} \`${parametros.join(' ')}\`\n`
+                    } else {
+                        texto += `┃ ${config.PREFIX}${ayuda}\n`
+                    }
+                })
             })
+            texto += `╰━━━━━━━━━━━━━━━━━━━━━━⬣\n\n`
         })
-        texto += `╰━━━━━━━━━━━━━━━━━━━━━━⬣\n\n`
-    })
 
-    Object.keys(grupos).forEach(tag => {
-        if (ordenTags.includes(tag)) return
-        texto += `╭━━━〔 ${tag.toUpperCase()} 〕━━━⬣\n`
-        grupos[tag].forEach(cmd => {
-            cmd.help.forEach(ayuda => {
-                if (ayuda.includes(' ')) {
-                    const [cmdBase, ...parametros] = ayuda.split(' ')
-                    texto += `┃ ${config.PREFIX}${cmdBase} \`${parametros.join(' ')}\`\n`
-                } else {
-                    texto += `┃ ${config.PREFIX}${ayuda}\n`
-                }
+        Object.keys(grupos).forEach(tag => {
+            if (ordenTags.includes(tag)) return
+            texto += `╭━━━〔 ${tag.toUpperCase()} 〕━━━⬣\n`
+            grupos[tag].forEach(cmd => {
+                cmd.help.forEach(ayuda => {
+                    if (ayuda.includes(' ')) {
+                        const [cmdBase, ...parametros] = ayuda.split(' ')
+                        texto += `┃ ${config.PREFIX}${cmdBase} \`${parametros.join(' ')}\`\n`
+                    } else {
+                        texto += `┃ ${config.PREFIX}${ayuda}\n`
+                    }
+                })
             })
+            texto += `╰━━━━━━━━━━━━━━━━━━━━━━⬣\n\n`
         })
-        texto += `╰━━━━━━━━━━━━━━━━━━━━━━⬣\n\n`
-    })
 
-    texto += `🌊 Navega con cuidado y disfruta de estas aguas 🦈`
+        texto += `🌊 Navega con cuidado y disfruta de estas aguas 🦈`
 
-    try {
-        await sock.sendMessage(from, {
-            image: { url: 'https://files.catbox.moe/273uw0.png' }, // Pon tu enlace real
-            caption: texto
-        }, { quoted: m })
+        try {
+            await sock.sendMessage(from, {
+                image: { url: 'https://files.catbox.moe/273uw0.png' }, // Pon tu enlace real
+                caption: texto
+            }, { quoted: m })
+        } catch (err) {
+            console.log(chalk.redBright('⚠️ Error al enviar imagen:'), err.message)
+            await sock.sendMessage(from, { text: texto }, { quoted: m })
+        }
+
     } catch (err) {
-        console.log(chalk.redBright('⚠️ Error al enviar imagen:'), err.message)
-        await sock.sendMessage(from, { text: texto }, { quoted: m })
+        console.log(chalk.redBright('⚠️ Error al cargar comandos:'), err.message)
+        return sock.sendMessage(from, {
+            text: '`❌ No se pudieron cargar los comandos`'
+        }, { quoted: m })
     }
 }
 
