@@ -2,6 +2,7 @@ import { connect } from './lib/connection.js'
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
+import fetch from 'node-fetch'
 import chalk from 'chalk'
 import config from './config.js'
 
@@ -10,24 +11,43 @@ const __dirname = path.dirname(__filename)
 let commands = new Map()
 let started = false
 
-// ───── QUOTED SISTEMA ─────      
-const sistema = (titulo = `${config.BOT_NAME} 🤖`) => ({      
-  key: {      
-    fromMe: false,      
-    participant: '0@s.whatsapp.net',      
-    remoteJid: 'status@broadcast'      
-  },      
-  message: {      
-    orderMessage: {      
-      itemCount: 1,      
-      message: titulo,      
-      footerText: config.BOT_NAME,      
-      surface: 2,      
-      sellerJid: '0@s.whatsapp.net'      
-    }      
-  }      
-})      
-// ────────────────────────────
+// ───── QUOTED PRO ─────
+const sistema = async (sock, from, titulo = `${config.BOT_NAME} 🦈`) => {
+  let nombreGrupo = 'Chat'
+  let thumbnail = null
+
+  try {
+    if (from.endsWith('@g.us')) {
+      const metadata = await sock.groupMetadata(from)
+      nombreGrupo = metadata.subject || 'Grupo'
+
+      try {
+        const pp = await sock.profilePictureUrl(from, 'image')
+        const res = await fetch(pp)
+        const buffer = await res.arrayBuffer()
+        thumbnail = Buffer.from(buffer)
+      } catch {}
+    }
+  } catch {}
+
+  return {
+    key: {
+      fromMe: false,
+      participant: '0@s.whatsapp.net',
+      remoteJid: 'status@broadcast'
+    },
+    message: {
+      extendedTextMessage: {
+        text: titulo,
+        title: config.BOT_NAME,
+        description: nombreGrupo,
+        jpegThumbnail: thumbnail,
+        previewType: 0
+      }
+    }
+  }
+}
+// ───────────────────────
 
 // Cargar plugins
 async function loadPlugins() {
@@ -74,7 +94,7 @@ function mostrarCabecera() {
     console.clear()
     console.log(chalk.blueBright.bold(`
 ╔══════════════════════════════════════╗
-║           🤖 TIBU BOT 🤖            ║
+║           🦈 TIBU BOT 🦈            ║
 ║     Automatización y Comandos        ║
 ╚══════════════════════════════════════╝
 `))
@@ -88,7 +108,6 @@ async function startBot() {
 
         await loadPlugins()
 
-        // Solo iniciar una vez
         if (!started) {
             started = true
             const botName = sock.user?.name || config.BOT_NAME
@@ -104,13 +123,14 @@ async function startBot() {
                     if (typeof user !== 'string' || typeof author !== 'string') return
 
                     const texto = action === 'promote'
-                        ? `\`👑 NUEVO ADMINISTRADOR\`\n\n👤 \`@${user.split('@')[0]}\`\n👮 Por: \`@${author.split('@')[0]}\``
-                        : `\`📉 ADMINISTRADOR REMOVIDO\`\n\n👤 \`@${user.split('@')[0]}\`\n👮 Por: \`@${author.split('@')[0]}\``
+                        ? `🌊 NUEVO ADMINISTRADOR 🦈\n\n👤 @${user.split('@')[0]}\n👮 Por: @${author.split('@')[0]}`
+                        : `🫧 ADMINISTRADOR REMOVIDO 📉\n\n👤 @${user.split('@')[0]}\n👮 Por: @${author.split('@')[0]}`
 
+                    const citado = await sistema(sock, id, '🔔 ACTUALIZACIÓN DEL GRUPO')
                     await sock.sendMessage(id, {
                         text: texto + `\n\n> ${botName}`,
                         mentions: [user, author]
-                    }, { quoted: sistema() })
+                    }, { quoted: citado })
 
                 } catch (e) {
                     console.log(chalk.redBright('⚠️ AUTO-DETECT ADMIN ERROR:'), e.message)
@@ -131,31 +151,32 @@ async function startBot() {
                         let mentions = []
 
                         if (announce === true)
-                            texto = '`🔒 GRUPO CERRADO`\nSolo administradores pueden enviar mensajes'
+                            texto = '🔒 MAR CERRADO 🚧\nSolo administradores pueden navegar'
                         else if (announce === false)
-                            texto = '`🔓 GRUPO ABIERTO`\nTodos pueden enviar mensajes'
+                            texto = '🌊 MAR ABIERTO 🛶\nTodos pueden navegar libremente'
                         else if (restrict === true)
-                            texto = '`🛡️ SOLO ADMINS EDITAN`\nSolo administradores pueden modificar datos'
+                            texto = '🛡️ SOLO CAPITANES EDITAN 🦈\nSolo administradores pueden modificar datos'
                         else if (restrict === false)
-                            texto = '`✏️ TODOS PUEDEN EDITAR`\nCualquier miembro puede modificar datos'
+                            texto = '✏️ TODOS PUEDEN TRAZAR RUTAS 🗺️\nCualquier miembro puede modificar datos'
                         else if (subject)
-                            texto = `\`✏️ NOMBRE CAMBIADO\`\nNuevo: \`${subject}\``
+                            texto = `🐠 NOMBRE DEL OCÉANO CAMBIADO\nNuevo: ${subject}`
                         else if (desc !== undefined)
-                            texto = '`📝 DESCRIPCIÓN MODIFICADA`'
+                            texto = '📜 BITÁCORA ACTUALIZADA 📝'
                         else if (picture)
-                            texto = '`🖼️ FOTO ACTUALIZADA`'
+                            texto = '🏞️ FONDO DEL MAR RENOVADO 🖼️'
 
                         if (!texto) continue
 
                         if (actor) {
-                            texto += `\n\n👮 Por: \`@${actor.split('@')[0]}\``
+                            texto += `\n\n👮 Por: @${actor.split('@')[0]}`
                             mentions.push(actor)
                         }
 
+                        const citado = await sistema(sock, id, '🔔 ACTUALIZACIÓN DEL GRUPO')
                         await sock.sendMessage(id, {
                             text: texto + `\n\n> ${botName}`,
                             mentions
-                        }, { quoted: sistema() })
+                        }, { quoted: citado })
 
                     } catch (e) {
                         console.log(chalk.redBright('⚠️ AUTO-DETECT GROUP ERROR:'), e.message)
