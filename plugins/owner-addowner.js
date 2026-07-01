@@ -17,9 +17,8 @@ function guardarOwners(lista) {
     fs.writeFileSync(rutaOwners, JSON.stringify(lista, null, 4), 'utf8')
 }
 
-// Limpiar para comparar números/IDs
-function limpiar(texto) {
-    return texto.replace(/[^0-9]/g, '')
+function limpiar(n) {
+    return n.replace(/[^0-9]/g, '')
 }
 
 let handler = {}
@@ -29,37 +28,42 @@ handler.run = async (sock, m, args) => {
     const remitente = m.key.participant || m.key.remoteJid
     const remNum = limpiar(remitente)
 
-    // ✅ DETECTA POR NÚMERO (arreglo owner) O POR LID (arreglo ownerLid)
+    // Verificar dueño por número o lid
     const esDueno =
-        config.owner.some(num => limpiar(num) === remNum) ||
-        config.ownerLid.some(lid => limpiar(lid) === remNum)
+        config.owner.some(n => limpiar(n) === remNum) ||
+        config.ownerLid.some(l => limpiar(l) === remNum)
 
     if (!esDueno) {
         await sock.sendMessage(from, { react: { text: '🦈', key: m.key } })
-        return sock.sendMessage(from, {
-            text: '`🚫 Solo los capitanes pueden agregar nuevos dueños`'
-        }, { quoted: m })
+        return sock.sendMessage(from, { text: '`🚫 Solo capitanes pueden agregar`' }, { quoted: m })
     }
 
-    // Obtener usuario: respuesta, mención o número
     let usuarioJid, numero, nombre
-    if (m.quoted?.sender) {
+
+    // ✅ DETECTA RESPUESTA CORRECTAMENTE
+    if (m.quoted && m.quoted.key && m.quoted.sender) {
         usuarioJid = m.quoted.sender
         numero = limpiar(usuarioJid)
-        nombre = args.join(' ') || m.quoted.pushName || `Capitán ${numero}`
-    } else if (m.mentions?.[0]) {
+        nombre = args.join(' ').trim() || m.quoted.pushName || `Capitán ${numero}`
+    }
+    // ✅ DETECTA MENCIÓN
+    else if (m.mentions && m.mentions.length > 0) {
         usuarioJid = m.mentions[0]
         numero = limpiar(usuarioJid)
-        nombre = args.slice(1).join(' ') || `Capitán ${numero}`
-    } else if (args[0]) {
+        nombre = args.slice(1).join(' ').trim() || `Capitán ${numero}`
+    }
+    // ✅ DETECTA NÚMERO ESCRITO
+    else if (args[0]) {
         numero = limpiar(args[0])
         usuarioJid = `${numero}@s.whatsapp.net`
-        nombre = args.slice(1).join(' ') || `Capitán ${numero}`
-    } else {
+        nombre = args.slice(1).join(' ').trim() || `Capitán ${numero}`
+    }
+    else {
         await sock.sendMessage(from, { react: { text: '🌊', key: m.key } })
         return sock.sendMessage(from, {
-            text: '`🌊 Responde, menciona o escribe el número`\nEj: .addowner @usuario Nombre'
-        }, { quoted: m })
+            text: '`🌊 Responde a un mensaje, menciona o pon el número`\nEj: .addowner @Nombre',
+            quoted: m
+        })
     }
 
     const lista = leerOwners()
@@ -67,9 +71,7 @@ handler.run = async (sock, m, args) => {
 
     if (existe) {
         await sock.sendMessage(from, { react: { text: '✅', key: m.key } })
-        return sock.sendMessage(from, {
-            text: '`🚢 Este capitán ya navega en nuestra flota`'
-        }, { quoted: m })
+        return sock.sendMessage(from, { text: '`🚢 Ya está en la flota`', quoted: m })
     }
 
     lista.push({ number: numero, id: usuarioJid, name: nombre })
@@ -78,7 +80,7 @@ handler.run = async (sock, m, args) => {
     await sock.sendMessage(from, { react: { text: '🏴‍☠️', key: m.key } })
     await sock.sendMessage(from, {
         text: `\`🌊 NUEVO CAPITÁN AGREGADO 🦈\`\nNombre: ${nombre}\nNúmero: @${numero}\n\n> ${config.BOT_NAME}`,
-        mentions: [usuarioJid]
+        mentions: [usuarioJid] // ✅ MENCIÓN CORRECTA
     }, { quoted: m })
 }
 
