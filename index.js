@@ -1,4 +1,4 @@
-import { connect } from './conexion.js'
+import { connect } from './lib/connection.js'
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
