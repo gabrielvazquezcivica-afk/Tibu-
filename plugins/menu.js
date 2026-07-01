@@ -32,7 +32,7 @@ handler.run = async (sock, m, args) => {
     }
 
     const emojiTag = {
-        'información': '📋',
+        'informacion': '📋',
         'on-off': '🔛',
         'grupo': '👥',
         'descargas': '📥',
@@ -44,7 +44,7 @@ handler.run = async (sock, m, args) => {
     }
 
     const ordenTags = [
-        'información',
+        'informacion',
         'on-off',
         'grupo',
         'descargas',
