@@ -7,7 +7,6 @@ function limpiarNum(n = '') {
 function limpiarJid(jid = '') {
     return jid
         .replace(/:\d+@/, '@')
-        .replace(/@lid$/, '@s.whatsapp.net')
         .trim()
 }
 
@@ -25,7 +24,7 @@ handler.run = async (sock, m, args) => {
     if (!esDueno) {
         return sock.sendMessage(
             from,
-            { text: '`🚫 Solo owners`' },
+            { text: '`🚫 Solo capitanes pueden usarlo`' },
             { quoted: m }
         )
     }
@@ -33,7 +32,7 @@ handler.run = async (sock, m, args) => {
     if (!from.endsWith('@g.us')) {
         return sock.sendMessage(
             from,
-            { text: '`🌊 Solo grupos`' },
+            { text: '`🌊 Solo funciona en grupos`' },
             { quoted: m }
         )
     }
@@ -41,49 +40,53 @@ handler.run = async (sock, m, args) => {
     try {
         const metadata = await sock.groupMetadata(from)
 
-        console.log('========= BOT =========')
-        console.log(JSON.stringify(sock.user, null, 2))
+        const botLid = limpiarJid(sock.user?.lid || '')
+        const botJid = limpiarJid(sock.user?.id || '')
 
-        console.log('===== PARTICIPANTS =====')
-        console.log(JSON.stringify(metadata.participants, null, 2))
+        const botParticipante = metadata.participants.find(
+            p =>
+                limpiarJid(p.id || '') === botLid ||
+                limpiarJid(p.jid || '') === botJid
+        )
 
-        const botNum = limpiarNum(sock.user?.id || '')
-        let botEsAdmin = false
-
-        for (const p of metadata.participants) {
-            const num = limpiarNum(p.id || '')
-
-            console.log({
-                id: p.id,
-                num,
-                admin: p.admin,
-                isAdmin: p.isAdmin,
-                isSuperAdmin: p.isSuperAdmin
-            })
-
-            if (
-                num === botNum &&
-                (
-                    p.admin ||
-                    p.isAdmin ||
-                    p.isSuperAdmin ||
-                    p.admin === 'admin' ||
-                    p.admin === 'superadmin'
-                )
-            ) {
-                botEsAdmin = true
-            }
-        }
+        const botEsAdmin =
+            botParticipante &&
+            (
+                botParticipante.admin === 'admin' ||
+                botParticipante.admin === 'superadmin'
+            )
 
         if (!botEsAdmin) {
             return sock.sendMessage(
                 from,
-                { text: '`⚠️ No detecto admin (revisa consola)`' },
+                { text: '`⚠️ No tengo rango de capitán aquí`' },
                 { quoted: m }
             )
         }
 
-        const userJid = `${remNum}@s.whatsapp.net`
+        const userParticipante = metadata.participants.find(
+            p =>
+                limpiarNum(p.jid || p.id || '') === remNum
+        )
+
+        const yaEsAdmin =
+            userParticipante &&
+            (
+                userParticipante.admin === 'admin' ||
+                userParticipante.admin === 'superadmin'
+            )
+
+        if (yaEsAdmin) {
+            return sock.sendMessage(
+                from,
+                { text: '`✅ Ya eres administrador`' },
+                { quoted: m }
+            )
+        }
+
+        const userJid =
+            userParticipante?.jid ||
+            `${remNum}@s.whatsapp.net`
 
         await sock.groupParticipantsUpdate(
             from,
@@ -94,7 +97,10 @@ handler.run = async (sock, m, args) => {
         await sock.sendMessage(
             from,
             {
-                text: `\`👑 Promovido\`\n@${remNum}`,
+                text:
+                    `\`🌊 CAPITÁN ASCENDIDO 🦈\`\n` +
+                    `Ahora gobiernas estas aguas @${remNum}\n\n` +
+                    `> ${config.BOT_NAME}`,
                 mentions: [userJid]
             },
             { quoted: m }
@@ -105,7 +111,10 @@ handler.run = async (sock, m, args) => {
 
         await sock.sendMessage(
             from,
-            { text: String(err) },
+            {
+                text:
+                    `\`❌ Error\`\n${err.message || err}`
+            },
             { quoted: m }
         )
     }
