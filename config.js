@@ -7,7 +7,7 @@ export default {
     OWNERS: [
         {
             number: '523310167470',       // Número sin signo +
-            id: '521234567890@s.whatsapp.net',
+            id: '523310167470@s.whatsapp.net',
             name: 'SoyGabo'
         },
         {
