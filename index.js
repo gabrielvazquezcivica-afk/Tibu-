@@ -123,8 +123,8 @@ async function startBot() {
                     if (typeof user !== 'string' || typeof author !== 'string') return
 
                     const texto = action === 'promote'
-                        ? `🌊 NUEVO ADMINISTRADOR 🦈\n\n👤 @${user.split('@')[0]}\n👮 Por: @${author.split('@')[0]}`
-                        : `🫧 ADMINISTRADOR REMOVIDO 📉\n\n👤 @${user.split('@')[0]}\n👮 Por: @${author.split('@')[0]}`
+                        ? `🌊 ` + '`NUEVO ADMINISTRADOR`' + ` 🦈\n\n👤 @${user.split('@')[0]}\n👮 Por: @${author.split('@')[0]}`
+                        : `🫧 ` + '`ADMINISTRADOR REMOVIDO`' + ` 📉\n\n👤 @${user.split('@')[0]}\n👮 Por: @${author.split('@')[0]}`
 
                     const citado = await sistema(sock, id, '🔔 ACTUALIZACIÓN DEL GRUPO')
                     await sock.sendMessage(id, {
@@ -151,19 +151,19 @@ async function startBot() {
                         let mentions = []
 
                         if (announce === true)
-                            texto = '🔒 MAR CERRADO 🚧\nSolo administradores pueden navegar'
+                            texto = '🔒 `MAR CERRADO` 🚧\nSolo administradores pueden navegar'
                         else if (announce === false)
-                            texto = '🌊 MAR ABIERTO 🛶\nTodos pueden navegar libremente'
+                            texto = '🌊 `MAR ABIERTO` 🛶\nTodos pueden navegar libremente'
                         else if (restrict === true)
-                            texto = '🛡️ SOLO CAPITANES EDITAN 🦈\nSolo administradores pueden modificar datos'
+                            texto = '🛡️ `SOLO CAPITANES EDITAN` 🦈\nSolo administradores pueden modificar datos'
                         else if (restrict === false)
-                            texto = '✏️ TODOS PUEDEN TRAZAR RUTAS 🗺️\nCualquier miembro puede modificar datos'
+                            texto = '✏️ `TODOS PUEDEN TRAZAR RUTAS` 🗺️\nCualquier miembro puede modificar datos'
                         else if (subject)
-                            texto = `🐠 NOMBRE DEL OCÉANO CAMBIADO\nNuevo: ${subject}`
+                            texto = `🐠 ` + '`NOMBRE DEL OCÉANO CAMBIADO`' + `\nNuevo: ` + `\`${subject}\``
                         else if (desc !== undefined)
-                            texto = '📜 BITÁCORA ACTUALIZADA 📝'
+                            texto = '📜 `BITÁCORA ACTUALIZADA` 📝'
                         else if (picture)
-                            texto = '🏞️ FONDO DEL MAR RENOVADO 🖼️'
+                            texto = '🏞️ `FONDO DEL MAR RENOVADO` 🖼️'
 
                         if (!texto) continue
 
