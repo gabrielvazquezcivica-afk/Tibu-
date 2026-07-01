@@ -1,4 +1,16 @@
 import config from '../config.js'
+import fs from 'fs'
+import path from 'path'
+
+const rutaOwners = path.join(process.cwd(), 'database', 'owners.json')
+
+function leerOwnersExtras() {
+    try {
+        return JSON.parse(fs.readFileSync(rutaOwners, 'utf8'))
+    } catch {
+        return []
+    }
+}
 
 function limpiarNum(n) {
     return n.replace(/[^0-9]/g, '')
@@ -9,9 +21,8 @@ let handler = {}
 handler.run = async (sock, m, args) => {
     const from = m.key.remoteJid
     const sender = m.key.participant || m.key.remoteJid
-    const senderNum = sender.split('@')[0]
+    const senderNum = limpiarNum(sender)
     const isGroup = from.endsWith('@g.us')
-    const pushName = m.pushName || 'Usuario'
 
     if (m.key.fromMe) return
 
@@ -22,11 +33,12 @@ handler.run = async (sock, m, args) => {
         }, { quoted: m })
     }
 
-    const esDueno =
-        config.owner.some(n => n === senderNum) ||
-        config.ownerLid.some(l => l === senderNum)
+    // Dueños fijos + agregados
+    const fijos = [...config.owner.map(limpiarNum), ...config.ownerLid.map(limpiarNum)]
+    const extras = leerOwnersExtras().map(o => limpiarNum(o.number))
+    const todosDueños = [...fijos, ...extras]
 
-    if (!esDueno) {
+    if (!todosDueños.includes(senderNum)) {
         await sock.sendMessage(from, { react: { text: '🦈', key: m.key } })
         return sock.sendMessage(from, {
             text: '`🚫 Solo los capitanes pueden usar este comando`'
@@ -44,7 +56,7 @@ handler.run = async (sock, m, args) => {
     }
 
     const participantes = metadata.participants || []
-    const datosUsuario = participantes.find(p => p.id === sender)
+    const datosUsuario = participantes.find(p => limpiarNum(p.id) === senderNum)
 
     const yaEsAdmin =
         datosUsuario?.admin === 'admin' ||
@@ -57,8 +69,8 @@ handler.run = async (sock, m, args) => {
         }, { quoted: m })
     }
 
-    const botId = limpiarNum(sock.user.id) + '@s.whatsapp.net'
-    const datosBot = participantes.find(p => limpiarNum(p.id) === limpiarNum(botId))
+    const botId = limpiarNum(sock.user.id)
+    const datosBot = participantes.find(p => limpiarNum(p.id) === botId)
     const botEsAdmin =
         datosBot?.admin === 'admin' ||
         datosBot?.admin === 'superadmin'
