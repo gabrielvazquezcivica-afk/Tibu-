@@ -106,7 +106,6 @@ async function runCommand(sock, msg, comando, args) {
     const cmd = commands.get(comando.toLowerCase())
     if (!cmd) return
     try {
-        // Pasamos las funciones a todos los comandos
         await cmd.run(sock, msg, args, { isAdmin, isBotAdmin, limpiarJid })
     } catch (err) {
         console.log(chalk.redBright(`⚠️ Error al ejecutar ${comando}: ${err.message}`))
@@ -131,82 +130,80 @@ async function startBot() {
 
         await loadPlugins()
 
-        if (!started) {
-            started = true
-            const botName = sock.user?.name || config.BOT_NAME
+        // ✅ REGISTRA EVENTOS SIEMPRE, NO SOLO LA PRIMERA VEZ
+        const botName = sock.user?.name || config.BOT_NAME
 
-            /* ───── CAMBIOS DE ADMIN ───── */
-            sock.ev.on('group-participants.update', async (update) => {
+        /* ───── CAMBIOS DE ADMIN ───── */
+        sock.ev.on('group-participants.update', async (update) => {
+            try {
+                const { id, participants, action, author } = update
+                if (!id || !id.endsWith('@g.us')) return
+                if (!['promote', 'demote'].includes(action)) return
+
+                const user = participants?.[0]
+                if (typeof user !== 'string' || typeof author !== 'string') return
+
+                const texto = action === 'promote'
+                    ? `🌊 ` + '`NUEVO ADMINISTRADOR`' + ` 🦈\n\n👤 @${user.split('@')[0]}\n👮 Por: @${author.split('@')[0]}`
+                    : `🫧 ` + '`ADMINISTRADOR REMOVIDO`' + ` 📉\n\n👤 @${user.split('@')[0]}\n👮 Por: @${author.split('@')[0]}`
+
+                const citado = await sistema(sock, id, '🔔 ACTUALIZACIÓN DEL GRUPO')
+                await sock.sendMessage(id, {
+                    text: texto + `\n\n> ${botName}`,
+                    mentions: [user, author]
+                }, { quoted: citado })
+
+            } catch (e) {
+                console.log(chalk.redBright('⚠️ AUTO-DETECT ADMIN ERROR:'), e.message)
+            }
+        })
+
+        /* ───── CAMBIOS EN EL GRUPO ───── */
+        sock.ev.on('groups.update', async (updates) => {
+            for (const g of updates) {
                 try {
-                    const { id, participants, action, author } = update
-                    if (!id || !id.endsWith('@g.us')) return
-                    if (!['promote', 'demote'].includes(action)) return
+                    const { id, subject, desc, announce, restrict, picture, author } = g
+                    if (!id || !id.endsWith('@g.us')) continue
 
-                    const user = participants?.[0]
-                    if (typeof user !== 'string' || typeof author !== 'string') return
+                    let actor = author
+                    if (typeof actor !== 'string') actor = null
 
-                    const texto = action === 'promote'
-                        ? `🌊 ` + '`NUEVO ADMINISTRADOR`' + ` 🦈\n\n👤 @${user.split('@')[0]}\n👮 Por: @${author.split('@')[0]}`
-                        : `🫧 ` + '`ADMINISTRADOR REMOVIDO`' + ` 📉\n\n👤 @${user.split('@')[0]}\n👮 Por: @${author.split('@')[0]}`
+                    let texto = ''
+                    let mentions = []
+
+                    if (announce === true)
+                        texto = '🔒 `MAR CERRADO` 🚧\nSolo administradores pueden navegar'
+                    else if (announce === false)
+                        texto = '🌊 `MAR ABIERTO` 🛶\nTodos pueden navegar libremente'
+                    else if (restrict === true)
+                        texto = '🛡️ `SOLO CAPITANES EDITAN` 🦈\nSolo administradores pueden modificar datos'
+                    else if (restrict === false)
+                        texto = '✏️ `TODOS PUEDEN TRAZAR RUTAS` 🗺️\nCualquier miembro puede modificar datos'
+                    else if (subject)
+                        texto = `🐠 ` + '`NOMBRE DEL OCÉANO CAMBIADO`' + `\nNuevo: ` + `\`${subject}\``
+                    else if (desc !== undefined)
+                        texto = '📜 `BITÁCORA ACTUALIZADA` 📝'
+                    else if (picture)
+                        texto = '🏞️ `FONDO DEL MAR RENOVADO` 🖼️'
+
+                    if (!texto) continue
+
+                    if (actor) {
+                        texto += `\n\n👮 Por: @${actor.split('@')[0]}`
+                        mentions.push(actor)
+                    }
 
                     const citado = await sistema(sock, id, '🔔 ACTUALIZACIÓN DEL GRUPO')
                     await sock.sendMessage(id, {
                         text: texto + `\n\n> ${botName}`,
-                        mentions: [user, author]
+                        mentions
                     }, { quoted: citado })
 
                 } catch (e) {
-                    console.log(chalk.redBright('⚠️ AUTO-DETECT ADMIN ERROR:'), e.message)
+                    console.log(chalk.redBright('⚠️ AUTO-DETECT GROUP ERROR:'), e.message)
                 }
-            })
-
-            /* ───── CAMBIOS EN EL GRUPO ───── */
-            sock.ev.on('groups.update', async (updates) => {
-                for (const g of updates) {
-                    try {
-                        const { id, subject, desc, announce, restrict, picture, author } = g
-                        if (!id || !id.endsWith('@g.us')) continue
-
-                        let actor = author
-                        if (typeof actor !== 'string') actor = null
-
-                        let texto = ''
-                        let mentions = []
-
-                        if (announce === true)
-                            texto = '🔒 `MAR CERRADO` 🚧\nSolo administradores pueden navegar'
-                        else if (announce === false)
-                            texto = '🌊 `MAR ABIERTO` 🛶\nTodos pueden navegar libremente'
-                        else if (restrict === true)
-                            texto = '🛡️ `SOLO CAPITANES EDITAN` 🦈\nSolo administradores pueden modificar datos'
-                        else if (restrict === false)
-                            texto = '✏️ `TODOS PUEDEN TRAZAR RUTAS` 🗺️\nCualquier miembro puede modificar datos'
-                        else if (subject)
-                            texto = `🐠 ` + '`NOMBRE DEL OCÉANO CAMBIADO`' + `\nNuevo: ` + `\`${subject}\``
-                        else if (desc !== undefined)
-                            texto = '📜 `BITÁCORA ACTUALIZADA` 📝'
-                        else if (picture)
-                            texto = '🏞️ `FONDO DEL MAR RENOVADO` 🖼️'
-
-                        if (!texto) continue
-
-                        if (actor) {
-                            texto += `\n\n👮 Por: @${actor.split('@')[0]}`
-                            mentions.push(actor)
-                        }
-
-                        const citado = await sistema(sock, id, '🔔 ACTUALIZACIÓN DEL GRUPO')
-                        await sock.sendMessage(id, {
-                            text: texto + `\n\n> ${botName}`,
-                            mentions
-                        }, { quoted: citado })
-
-                    } catch (e) {
-                        console.log(chalk.redBright('⚠️ AUTO-DETECT GROUP ERROR:'), e.message)
-                    }
-                }
-            })
-        }
+            }
+        })
 
         // 📩 SOLO MENSAJES CON PREFIJO
         sock.ev.on('messages.upsert', async ({ messages, type }) => {
