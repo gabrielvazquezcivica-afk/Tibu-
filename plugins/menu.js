@@ -1,6 +1,11 @@
 import config from '../config.js'
 import fs from 'fs'
 import path from 'path'
+import { fileURLToPath } from 'url'
+
+// Definir __dirname manualmente
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 function obtenerSaludo() {
     const hora = new Date().getHours()
@@ -95,7 +100,7 @@ handler.run = async (sock, m, args) => {
 
     try {
         await sock.sendMessage(from, {
-            image: { url: 'https://catbox.moe/tu-imagen.jpg' }, // Cambia por tu enlace
+            image: { url: 'https://files.catbox.moe/273uw0.png' }, // Pon tu enlace real
             caption: texto
         }, { quoted: m })
     } catch {
