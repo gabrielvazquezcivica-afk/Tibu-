@@ -1,6 +1,6 @@
 const config = {
-    BOT_NAME: 'Tibu Bot',
-    OWNER_NAME: 'SoyGabo',
+    BOT_NAME: '𝐓𝐈𝐁𝐔 𝐁𝐎𝐓',
+    OWNER_NAME: '𝐒𝐨𝐲𝐆𝐚𝐛𝐨',
 
     // Números de dueños
     owner: [
