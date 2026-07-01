@@ -181,7 +181,7 @@ handler.run = async (sock, m, args) => {
 
 handler.command = ['delowner', 'quitarcapitan']
 handler.help = ['delowner <@/número>']
-handler.tags = ['dueño']
+handler.tags = ['owner']
 handler.menu = true
 
 export default handler
