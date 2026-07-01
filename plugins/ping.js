@@ -1,3 +1,5 @@
+import config from '../config.js'
+
 let handler = {}
 
 handler.run = async (sock, msg, args) => {
@@ -11,9 +13,12 @@ handler.run = async (sock, msg, args) => {
     const fin = Date.now()
     const velocidad = fin - inicio
 
+    // Texto con el pie de nombre del bot
+    const texto = `🚀 Velocidad: *${velocidad} ms*\n\n> ${config.BOT_NAME}`
+
     // Responde citando el mensaje original
     await sock.sendMessage(msg.key.remoteJid, {
-        text: `🚀 Velocidad: *${velocidad} ms*`,
+        text: texto,
         quoted: msg
     })
 
@@ -23,8 +28,8 @@ handler.run = async (sock, msg, args) => {
     })
 }
 
-// Todo va aquí abajo
-handler.command = ['ping', 'velocidad']
+
+handler.command = ['ping', 'p']
 handler.help = ['ping']
 handler.tags = ['informacion']
 handler.menu = true
