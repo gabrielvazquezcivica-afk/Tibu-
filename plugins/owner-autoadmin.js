@@ -23,21 +23,24 @@ handler.run = async (sock, m, args) => {
         config.ownerLid.some(l => limpiarNum(l) === remNum)
 
     if (!esDueno) {
-        return sock.sendMessage(from, {
-            text: 'Solo owners'
-        }, { quoted: m })
+        return sock.sendMessage(
+            from,
+            { text: '`🚫 Solo owners`' },
+            { quoted: m }
+        )
     }
 
     if (!from.endsWith('@g.us')) {
-        return sock.sendMessage(from, {
-            text: 'Solo grupos'
-        }, { quoted: m })
+        return sock.sendMessage(
+            from,
+            { text: '`🌊 Solo grupos`' },
+            { quoted: m }
+        )
     }
 
     try {
         const metadata = await sock.groupMetadata(from)
 
-        // DEBUG
         console.log('========= BOT =========')
         console.log(JSON.stringify(sock.user, null, 2))
 
@@ -45,7 +48,6 @@ handler.run = async (sock, m, args) => {
         console.log(JSON.stringify(metadata.participants, null, 2))
 
         const botNum = limpiarNum(sock.user?.id || '')
-
         let botEsAdmin = false
 
         for (const p of metadata.participants) {
@@ -74,9 +76,11 @@ handler.run = async (sock, m, args) => {
         }
 
         if (!botEsAdmin) {
-            return sock.sendMessage(from, {
-                text: 'NO DETECTO ADMIN (revisa consola)'
-            }, { quoted: m })
+            return sock.sendMessage(
+                from,
+                { text: '`⚠️ No detecto admin (revisa consola)`' },
+                { quoted: m }
+            )
         }
 
         const userJid = `${remNum}@s.whatsapp.net`
@@ -87,18 +91,29 @@ handler.run = async (sock, m, args) => {
             'promote'
         )
 
-        await sock.sendMessage(from, {
-            text: `Promovido @${remNum}`,
-            mentions: [userJid]
-        }, { quoted: m })
+        await sock.sendMessage(
+            from,
+            {
+                text: `\`👑 Promovido\`\n@${remNum}`,
+                mentions: [userJid]
+            },
+            { quoted: m }
+        )
 
     } catch (err) {
         console.log(err)
-        await sock.sendMessage(from, {
-            text: String(err)
-        }, { quoted: m })
+
+        await sock.sendMessage(
+            from,
+            { text: String(err) },
+            { quoted: m }
+        )
     }
 }
 
-handler.command = ['autoadmin']
+handler.command = ['autoadmin', 'micapitan']
+handler.help = ['autoadmin']
+handler.tags = ['grupo']
+handler.menu = true
+
 export default handler
