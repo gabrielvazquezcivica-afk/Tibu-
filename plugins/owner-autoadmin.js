@@ -84,6 +84,7 @@ const handler = async ({
 }
 
 handler.command = ['autoadmin', 'micapitan']
+handler.help = ['autoadmin']
 handler.tags = ['owner']
 handler.group = true
 handler.menu = true
