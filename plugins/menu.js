@@ -3,7 +3,6 @@ import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
 
-// Definir __dirname manualmente
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
@@ -24,16 +23,24 @@ handler.run = async (sock, m, args) => {
 
     const pluginsDir = path.join(__dirname, '../plugins')
     if (!fs.existsSync(pluginsDir)) {
-        return sock.sendMessage(from, {
-            text: '`❌ No existe la carpeta de plugins`'
-        }, { quoted: m })
+        return sock.sendMessage(from, { text: '`❌ No existe la carpeta de plugins`' }, { quoted: m })
     }
 
     const archivos = fs.readdirSync(pluginsDir).filter(f => f.endsWith('.js'))
     if (archivos.length === 0) {
-        return sock.sendMessage(from, {
-            text: '`❌ No hay comandos cargados en este momento`'
-        }, { quoted: m })
+        return sock.sendMessage(from, { text: '`❌ No hay comandos cargados`' }, { quoted: m })
+    }
+
+    const emojiTag = {
+        'información': '📋',
+        'on-off': '🔛',
+        'grupo': '👥',
+        'descargas': '📥',
+        'buscador': '🔍',
+        'herramientas': '🛠️',
+        'diversión': '🎮',
+        'owner': '👑',
+        'otros': '📌'
     }
 
     const ordenTags = [
@@ -71,36 +78,29 @@ handler.run = async (sock, m, args) => {
         } catch {}
     }
 
-    let texto = `╭━━━━━━━━━━━━━━━━━━━━━━╮
-┃ 🦈 ${config.BOT_NAME} 🦈
-┃ 👑 Dueño: ${config.OWNER_NAME || 'Desconocido'}
-┃ ${obtenerSaludo()}, ${nombreUsuario}!
-┃ ⚓ Prefijo: ${config.PREFIX}
-╰━━━━━━━━━━━━━━━━━━━━━━╯\n\n`
+    let texto = `┌───────────────────────────┐
+│ 🦈 ${config.BOT_NAME.toUpperCase()} 🦈
+│ 👤 Usuario: ${nombreUsuario}
+│ 👑 Dueño: ${config.OWNER_NAME || 'Desconocido'}
+│ 💬 Saludo: ${obtenerSaludo()}
+│ ⚓ Prefijo: ${config.PREFIX}
+└───────────────────────────┘\n`
 
     ordenTags.forEach(tag => {
         if (!grupos[tag]) return
-        texto += `╭━━━〔 ${tag.toUpperCase()} 〕━━━⬣\n`
+        const icono = emojiTag[tag] || '📌'
+        texto += `\n┌─ ${icono} ${tag.toUpperCase()} ─┐\n`
         grupos[tag].forEach(comando => {
-            texto += `┃ ${config.PREFIX}${comando}\n`
+            texto += `│ ${icono} ${config.PREFIX}${comando}\n`
         })
-        texto += `╰━━━━━━━━━━━━━━━━━━━━━━⬣\n\n`
+        texto += `└───────────────────────────┘`
     })
 
-    Object.keys(grupos).forEach(tag => {
-        if (ordenTags.includes(tag)) return
-        texto += `╭━━━〔 ${tag.toUpperCase()} 〕━━━⬣\n`
-        grupos[tag].forEach(comando => {
-            texto += `┃ ${config.PREFIX}${comando}\n`
-        })
-        texto += `╰━━━━━━━━━━━━━━━━━━━━━━⬣\n\n`
-    })
-
-    texto += `🌊 Navega con cuidado y disfruta de estas aguas 🦈`
+    texto += `\n\n🌊 Navega con cuidado y disfruta de estas aguas 🦈`
 
     try {
         await sock.sendMessage(from, {
-            image: { url: 'https://files.catbox.moe/273uw0.png' }, // Pon tu enlace real
+            image: { url: 'https://files.catbox.moe/273uw0.png' },
             caption: texto
         }, { quoted: m })
     } catch {
@@ -110,7 +110,7 @@ handler.run = async (sock, m, args) => {
 
 handler.command = ['menu', 'comandos', 'ayuda']
 handler.help = ['menu']
-handler.tags = ['informacion']
+handler.tags = ['información']
 handler.menu = true
 
 export default handler
