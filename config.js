@@ -1,22 +1,20 @@
-export default {
-    // Datos generales
+const config = {
     BOT_NAME: 'Tibu Bot',
     OWNER_NAME: 'SoyGabo',
 
-    // Lista de dueños (agrega tantos como quieras)
-    OWNERS: [
-        {
-            number: '523310167470',       // Número sin signo +
-            id: '523310167470@s.whatsapp.net',
-            name: 'SoyGabo'
-        },
-        {
-            number: '521987654321',       // Otro dueño adicional
-            id: '521987654321@s.whatsapp.net',
-            name: 'Nombre del Segundo Dueño'
-        }
+    // Números de dueños
+    owner: [
+        '523310167470',
+        '18252535152'
     ],
 
-    // Prefijo de comandos
+    // IDs / LID de dueños
+    ownerLid: [
+        '215590228750567',
+        '279302511845418'
+    ],
+
     PREFIX: '.'
 }
+
+export default config
