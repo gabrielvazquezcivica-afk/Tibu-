@@ -1,7 +1,8 @@
 import config from '../config.js'
 import chalk from 'chalk'
 
-let handler = {}
+// Importamos la lista global de comandos
+import { commands } from '../index.js'
 
 function obtenerSaludo() {
     const hora = new Date().getHours()
@@ -10,21 +11,22 @@ function obtenerSaludo() {
     return '🌙 ¡Buenas noches'
 }
 
+let handler = {}
+
 handler.run = async (sock, m, args) => {
     const from = m.key.remoteJid
     const nombreUsuario = m.pushName || 'Capitán'
 
     await sock.sendMessage(from, { react: { text: '🦈', key: m.key } })
 
-    // Obtener comandos cargados
-    const comandos = Array.from(sock.commands?.values() || [])
-    if (comandos.length === 0) {
+    // Leer desde la lista global
+    const listaComandos = Array.from(commands.values())
+    if (listaComandos.length === 0) {
         return sock.sendMessage(from, {
             text: '`❌ No hay comandos cargados en este momento`'
         }, { quoted: m })
     }
 
-    // Orden de etiquetas
     const ordenTags = [
         'información',
         'on-off',
@@ -37,15 +39,13 @@ handler.run = async (sock, m, args) => {
         'otros'
     ]
 
-    // Agrupar por etiquetas
     const grupos = {}
-    comandos.forEach(cmd => {
+    listaComandos.forEach(cmd => {
         let tag = cmd.tags?.[0]?.toLowerCase() || 'otros'
         if (!grupos[tag]) grupos[tag] = []
         grupos[tag].push(cmd)
     })
 
-    // Encabezado con saludo, bot y dueño
     let texto = `╭━━━━━━━━━━━━━━━━━━━━━━╮
 ┃ 🦈 ${config.BOT_NAME} 🦈
 ┃ 👑 Dueño: ${config.OWNER_NAME || 'Desconocido'}
@@ -53,15 +53,14 @@ handler.run = async (sock, m, args) => {
 ┃ ⚓ Prefijo: ${config.PREFIX}
 ╰━━━━━━━━━━━━━━━━━━━━━━╯\n\n`
 
-    // Agregar por orden de etiquetas
     ordenTags.forEach(tag => {
         if (!grupos[tag]) return
         texto += `╭━━━〔 ${tag.toUpperCase()} 〕━━━⬣\n`
         grupos[tag].forEach(cmd => {
             cmd.help.forEach(ayuda => {
-                // Si tiene parámetros, poner entre acento grave
                 if (ayuda.includes(' ')) {
-                    texto += `┃ ${config.PREFIX}${ayuda.split(' ')[0]} \`${ayuda.split(' ').slice(1).join(' ')}\`\n`
+                    const [cmdBase, ...parametros] = ayuda.split(' ')
+                    texto += `┃ ${config.PREFIX}${cmdBase} \`${parametros.join(' ')}\`\n`
                 } else {
                     texto += `┃ ${config.PREFIX}${ayuda}\n`
                 }
@@ -70,14 +69,14 @@ handler.run = async (sock, m, args) => {
         texto += `╰━━━━━━━━━━━━━━━━━━━━━━⬣\n\n`
     })
 
-    // Etiquetas restantes
     Object.keys(grupos).forEach(tag => {
         if (ordenTags.includes(tag)) return
         texto += `╭━━━〔 ${tag.toUpperCase()} 〕━━━⬣\n`
         grupos[tag].forEach(cmd => {
             cmd.help.forEach(ayuda => {
                 if (ayuda.includes(' ')) {
-                    texto += `┃ ${config.PREFIX}${ayuda.split(' ')[0]} \`${ayuda.split(' ').slice(1).join(' ')}\`\n`
+                    const [cmdBase, ...parametros] = ayuda.split(' ')
+                    texto += `┃ ${config.PREFIX}${cmdBase} \`${parametros.join(' ')}\`\n`
                 } else {
                     texto += `┃ ${config.PREFIX}${ayuda}\n`
                 }
@@ -88,10 +87,9 @@ handler.run = async (sock, m, args) => {
 
     texto += `🌊 Navega con cuidado y disfruta de estas aguas 🦈`
 
-    // Enviar con imagen
     try {
         await sock.sendMessage(from, {
-            image: { url: 'https://files.catbox.moe/273uw0.png' }, // Pon tu enlace real
+            image: { url: 'https://files.catbox.moe/273uw0.png' }, // Cambia por tu enlace
             caption: texto
         }, { quoted: m })
     } catch (err) {
