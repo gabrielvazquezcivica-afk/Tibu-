@@ -1,0 +1,25 @@
+{
+  "name": "tibu-bot",
+  "version": "1.0.0",
+  "description": "Bot de WhatsApp Tibu Bot con reconexión automática y sistema de plugins",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "keywords": [
+    "bot",
+    "whatsapp",
+    "baileys",
+    "tibu",
+    "automatizacion"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.7.0",
+    "chalk": "^5.4.1",
+    "pino": "^9.6.0",
+    "qrcode-terminal": "^0.12.0"
+  }
+}
