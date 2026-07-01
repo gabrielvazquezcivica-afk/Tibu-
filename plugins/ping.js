@@ -1,36 +1,31 @@
 import config from '../config.js'
 
-let handler = {}
+const handler = async ({ sock, m, from }) => {
+    const start = Date.now()
 
-handler.run = async (sock, msg, args) => {
-    const inicio = Date.now()
-
-    // Reacción de espera
-    await sock.sendMessage(msg.key.remoteJid, {
-        react: { text: '⏳', key: msg.key }
+    // ⚡ Reacción inicial
+    await sock.sendMessage(from, {
+        react: { text: '⚡', key: m.key }
     })
 
-    const fin = Date.now()
-    const velocidad = fin - inicio
+    const speed = Date.now() - start
 
-    // Texto con el pie de nombre del bot
-    const texto = `🚀 Velocidad: *${velocidad} ms*\n\n> ${config.BOT_NAME}`
+    // 🚀 Respuesta con diseño y nombre del bot
+    await sock.sendMessage(from, {
+        text: `╭━━━━━━━━━━━━━┓
+┃  ⚡ *P O N G*  ⚡
+┣━━━━━━━━━━━━━┫
+┃ 📶 Velocidad: *${speed} ms*
+┃ 🚀 Estado: ${speed < 200 ? '✅ RÁPIDO' : speed < 500 ? '⚖️ NORMAL' : '⚠️ LENTO'}
+╰━━━━━━━━━━━━━┛
 
-    // Responde citando el mensaje original
-    await sock.sendMessage(msg.key.remoteJid, {
-        text: texto,
-        quoted: msg
-    })
-
-    // Reacción de confirmación
-    await sock.sendMessage(msg.key.remoteJid, {
-        react: { text: '✅', key: msg.key }
-    })
+> ${config.BOT_NAME}`
+    }, { quoted: m })
 }
 
-
-handler.command = ['ping', 'p']
-handler.help = ['ping']
+// ⚙️ Configuración del comando
+handler.command = ['p', 'ping']
+handler.help = ['p']
 handler.tags = ['informacion']
 handler.menu = true
 
