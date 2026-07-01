@@ -9,7 +9,7 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 let commands = new Map()
 
-// Cargar plugins directamente aquí
+// Cargar plugins
 async function loadPlugins() {
     commands.clear()
     const pluginsDir = path.join(__dirname, 'plugins')
@@ -36,13 +36,13 @@ async function loadPlugins() {
 }
 
 // Ejecutar comando
-async function runCommand(sock, msg, command, args) {
-    const cmd = commands.get(command.toLowerCase())
+async function runCommand(sock, msg, comando, args) {
+    const cmd = commands.get(comando.toLowerCase())
     if (!cmd) return
     try {
         await cmd.run(sock, msg, args)
     } catch (err) {
-        console.log(chalk.redBright(`⚠️ Error al ejecutar ${command}: ${err.message}`))
+        console.log(chalk.redBright(`⚠️ Error al ejecutar ${comando}: ${err.message}`))
     }
 }
 
@@ -65,35 +65,50 @@ async function startBot() {
         await loadPlugins()
 
         sock.ev.on('messages.upsert', async ({ messages, type }) => {
+            // Solo mensajes nuevos
             if (type !== 'notify') return
 
             const m = messages[0]
-            if (!m.key.fromMe && m.message) {
-                await sock.readMessages([m.key])
+            // Ignorar si es mensaje propio o no tiene contenido
+            if (!m || m.key.fromMe || !m.message) return
 
-                const texto = m.message.conversation ||
-                              m.message.extendedTextMessage?.text || ''
+            // Extraer texto RÁPIDO y SALIR si no tiene prefijo
+            const texto = m.message.conversation ||
+                          m.message.extendedTextMessage?.text || ''
 
-                if (!texto.startsWith(config.PREFIX)) return
+            if (!texto.startsWith(config.PREFIX)) return
 
-                const nombreUsuario = m.pushName || 'Desconocido'
-                const esGrupo = m.key.remoteJid?.endsWith('@g.us')
-                const nombreGrupo = esGrupo
-                    ? (await sock.groupMetadata(m.key.remoteJid)).subject
-                    : 'Chat Privado'
+            // Marcar como visto solo si ES comando
+            await sock.readMessages([m.key])
 
-                const [comando, ...args] = texto.slice(config.PREFIX.length).trim().split(' ')
+            // Extraer comando y argumentos
+            const [comando, ...args] = texto.slice(config.PREFIX.length).trim().split(' ')
 
-                console.log(chalk.yellowBright('╔══════════════════════════════════════╗'))
-                console.log(chalk.yellowBright(`║ 📥 COMANDO: ${config.PREFIX}${comando.padEnd(26)} ║`))
-                console.log(chalk.white(`║ 👤 USUARIO: ${nombreUsuario.padEnd(28)} ║`))
-                console.log(chalk.white(`║ 📍 EN: ${esGrupo ? `GRUPO: ${nombreGrupo}` : 'CHAT PRIVADO'}`.padEnd(38) + '║'))
-                console.log(chalk.yellowBright('╚══════════════════════════════════════╝\n'))
+            // Datos para consola (solo si es comando)
+            const nombreUsuario = m.pushName || 'Desconocido'
+            const esGrupo = m.key.remoteJid?.endsWith('@g.us')
+            let nombreGrupo = 'Chat Privado'
 
-                await runCommand(sock, m, comando, args)
+            // Solo consultar nombre de grupo si es necesario
+            if (esGrupo) {
+                try {
+                    nombreGrupo = (await sock.groupMetadata(m.key.remoteJid)).subject
+                } catch {
+                    nombreGrupo = 'Grupo'
+                }
             }
+
+            console.log(chalk.yellowBright('╔══════════════════════════════════════╗'))
+            console.log(chalk.yellowBright(`║ 📥 COMANDO: ${config.PREFIX}${comando.padEnd(26)} ║`))
+            console.log(chalk.white(`║ 👤 USUARIO: ${nombreUsuario.padEnd(28)} ║`))
+            console.log(chalk.white(`║ 📍 EN: ${esGrupo ? `GRUPO: ${nombreGrupo}` : 'CHAT PRIVADO'}`.padEnd(38) + '║'))
+            console.log(chalk.yellowBright('╚══════════════════════════════════════╝\n'))
+
+            // Ejecutar comando
+            await runCommand(sock, m, comando, args)
         })
 
+        // Reconexión
         sock.ev.on('connection.update', ({ connection }) => {
             if (connection === 'close') {
                 console.log(chalk.redBright('\n🔌 Conexión perdida. Reintentando en 5 segundos...\n'))
