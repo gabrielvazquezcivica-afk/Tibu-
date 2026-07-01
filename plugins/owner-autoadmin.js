@@ -12,11 +12,10 @@ function leerExtras() {
     }
 }
 
-function limpiarNumero(texto = '') {
-    return String(texto).replace(/[^0-9]/g, '')
+function limpiarNumero(txt = '') {
+    return String(txt).replace(/[^0-9]/g, '')
 }
 
-// Obtiene el número REAL aunque venga en id/jid/lid
 function obtenerNumero(obj) {
     if (!obj) return ''
 
@@ -38,18 +37,21 @@ handler.run = async (sock, m, args) => {
     const sender = m.key.participant || m.key.remoteJid
     const senderNum = obtenerNumero(sender)
 
+    console.log('========== MESSAGE ==========')
+    console.log('participant:', m.key.participant)
+    console.log('remoteJid:', m.key.remoteJid)
+    console.log('sender:', sender)
+    console.log('senderNum:', senderNum)
+
+    console.log('========== BOT ==========')
+    console.log(JSON.stringify(sock.user, null, 2))
+
     if (m.key.fromMe) return
 
     if (!from.endsWith('@g.us')) {
-        await sock.sendMessage(from, {
-            react: { text: '🌊', key: m.key }
-        })
-
-        return sock.sendMessage(
-            from,
-            { text: '`🌊 Solo funciona en grupos`' },
-            { quoted: m }
-        )
+        return sock.sendMessage(from, {
+            text: 'Solo grupos'
+        }, { quoted: m })
     }
 
     const fijos = [
@@ -60,118 +62,30 @@ handler.run = async (sock, m, args) => {
     const extras = leerExtras().map(o => limpiarNumero(o.number))
     const todosDueños = [...fijos, ...extras]
 
+    console.log('OWNERS:', todosDueños)
+
     if (!todosDueños.includes(senderNum)) {
-        await sock.sendMessage(from, {
-            react: { text: '🦈', key: m.key }
-        })
-
-        return sock.sendMessage(
-            from,
-            { text: '`🚫 Solo capitanes pueden usarlo`' },
-            { quoted: m }
-        )
+        return sock.sendMessage(from, {
+            text: 'No eres owner'
+        }, { quoted: m })
     }
 
-    let metadata
-    try {
-        metadata = await sock.groupMetadata(from)
-    } catch {
-        await sock.sendMessage(from, {
-            react: { text: '🪸', key: m.key }
+    const metadata = await sock.groupMetadata(from)
+
+    console.log('======= PARTICIPANTS =======')
+
+    for (const p of metadata.participants) {
+        console.log({
+            id: p.id,
+            jid: p.jid,
+            numero: obtenerNumero(p),
+            admin: p.admin
         })
-
-        return sock.sendMessage(
-            from,
-            { text: '`❌ No pude leer el grupo`' },
-            { quoted: m }
-        )
     }
-
-    const participantes = metadata.participants || []
-
-    // BOT
-    const botNum = obtenerNumero(sock.user)
-    const botInfo = participantes.find(
-        p => obtenerNumero(p) === botNum
-    )
-
-    const botEsAdmin =
-        botInfo?.admin === 'admin' ||
-        botInfo?.admin === 'superadmin'
-
-    if (!botEsAdmin) {
-        await sock.sendMessage(from, {
-            react: { text: '⚠️', key: m.key }
-        })
-
-        return sock.sendMessage(
-            from,
-            { text: '`⚠️ No soy administrador aquí`' },
-            { quoted: m }
-        )
-    }
-
-    // USUARIO
-    const userInfo = participantes.find(
-        p => obtenerNumero(p) === senderNum
-    )
-
-    const yaEsAdmin =
-        userInfo?.admin === 'admin' ||
-        userInfo?.admin === 'superadmin'
-
-    if (yaEsAdmin) {
-        await sock.sendMessage(from, {
-            react: { text: '✅', key: m.key }
-        })
-
-        return sock.sendMessage(
-            from,
-            { text: '`✅ Ya eres administrador`' },
-            { quoted: m }
-        )
-    }
-
-    const target =
-        userInfo?.jid ||
-        userInfo?.id ||
-        sender
 
     await sock.sendMessage(from, {
-        react: { text: '👑', key: m.key }
-    })
-
-    try {
-        await sock.groupParticipantsUpdate(
-            from,
-            [target],
-            'promote'
-        )
-
-        await sock.sendMessage(
-            from,
-            {
-                text:
-                    `\`🌊 CAPITÁN ASCENDIDO 🦈\`\n` +
-                    `Ahora gobiernas estas aguas @${senderNum}\n\n` +
-                    `> ${config.BOT_NAME}`,
-                mentions: [target]
-            },
-            { quoted: m }
-        )
-    } catch (e) {
-        console.log('❌ ERROR:', e)
-
-        await sock.sendMessage(from, {
-            react: { text: '❌', key: m.key }
-        })
-
-        return sock.sendMessage(
-            from,
-            { text: '`❌ No pude darte el rango`' },
-            { quoted: m }
-        )
-    }
+        text: 'Revisa consola de Termux'
+    }, { quoted: m })
 }
 
 handler.command = ['autoadmin', 'micapitan']
