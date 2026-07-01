@@ -11,6 +11,29 @@ const __dirname = path.dirname(__filename)
 let commands = new Map()
 let started = false
 
+// ─── FUNCIONES DE VERIFICACIÓN ───
+function limpiarJid(jid) {
+    return jid.replace(/[:].*@/, '@').trim()
+}
+
+async function isAdmin(sock, groupId, userJid) {
+    try {
+        const metadata = await sock.groupMetadata(groupId)
+        const limpioUser = limpiarJid(userJid)
+        return metadata.participants.some(p => 
+            limpiarJid(p.id) === limpioUser && p.admin
+        )
+    } catch {
+        return false
+    }
+}
+
+async function isBotAdmin(sock, groupId) {
+    const botJid = limpiarJid(sock.user.id)
+    return isAdmin(sock, groupId, botJid)
+}
+// ───────────────────────────────────
+
 // ───── QUOTED PRO ─────
 const sistema = async (sock, from, titulo = `${config.BOT_NAME} 🦈`) => {
   let nombreGrupo = 'Chat'
@@ -84,7 +107,8 @@ async function runCommand(sock, msg, comando, args) {
     const cmd = commands.get(comando.toLowerCase())
     if (!cmd) return
     try {
-        await cmd.run(sock, msg, args)
+        // Pasamos las funciones a todos los comandos
+        await cmd.run(sock, msg, args, { isAdmin, isBotAdmin, limpiarJid })
     } catch (err) {
         console.log(chalk.redBright(`⚠️ Error al ejecutar ${comando}: ${err.message}`))
     }
