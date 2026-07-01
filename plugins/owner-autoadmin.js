@@ -18,82 +18,67 @@ handler.run = async (sock, m, args) => {
     const remitente = limpiarJid(m.key.participant || m.key.remoteJid)
     const remNum = limpiarNum(remitente)
 
-    // Verificar dueño
     const esDueno =
         config.owner.some(n => limpiarNum(n) === remNum) ||
         config.ownerLid.some(l => limpiarNum(l) === remNum)
 
     if (!esDueno) {
-        await sock.sendMessage(from, {
-            react: { text: '🦈', key: m.key }
-        })
-
-        return sock.sendMessage(
-            from,
-            { text: '`🚫 Solo capitanes pueden usarlo`' },
-            { quoted: m }
-        )
+        return sock.sendMessage(from, {
+            text: 'Solo owners'
+        }, { quoted: m })
     }
 
     if (!from.endsWith('@g.us')) {
-        await sock.sendMessage(from, {
-            react: { text: '🌊', key: m.key }
-        })
-
-        return sock.sendMessage(
-            from,
-            { text: '`🌊 Solo funciona en grupos`' },
-            { quoted: m }
-        )
-    }
-
-    const metadata = await sock.groupMetadata(from)
-
-    const participantes = metadata.participants.map(p => ({
-        id: limpiarJid(p.id),
-        num: limpiarNum(p.id),
-        admin: p.admin
-    }))
-
-    const botNum = limpiarNum(sock.user.id)
-
-    // DEBUG (descomenta si quieres revisar)
-    // console.log('BOT:', sock.user.id)
-    // console.log(participantes)
-
-    const botEsAdmin = participantes.some(
-        p => p.num === botNum && p.admin
-    )
-
-    if (!botEsAdmin) {
-        await sock.sendMessage(from, {
-            react: { text: '⚠️', key: m.key }
-        })
-
-        return sock.sendMessage(
-            from,
-            { text: '`⚠️ No tengo rango de capitán aquí`' },
-            { quoted: m }
-        )
-    }
-
-    const yaEsAdmin = participantes.some(
-        p => p.num === remNum && p.admin
-    )
-
-    if (yaEsAdmin) {
-        await sock.sendMessage(from, {
-            react: { text: '✅', key: m.key }
-        })
-
-        return sock.sendMessage(
-            from,
-            { text: '`✅ Ya eres administrador de estas aguas`' },
-            { quoted: m }
-        )
+        return sock.sendMessage(from, {
+            text: 'Solo grupos'
+        }, { quoted: m })
     }
 
     try {
+        const metadata = await sock.groupMetadata(from)
+
+        // DEBUG
+        console.log('========= BOT =========')
+        console.log(JSON.stringify(sock.user, null, 2))
+
+        console.log('===== PARTICIPANTS =====')
+        console.log(JSON.stringify(metadata.participants, null, 2))
+
+        const botNum = limpiarNum(sock.user?.id || '')
+
+        let botEsAdmin = false
+
+        for (const p of metadata.participants) {
+            const num = limpiarNum(p.id || '')
+
+            console.log({
+                id: p.id,
+                num,
+                admin: p.admin,
+                isAdmin: p.isAdmin,
+                isSuperAdmin: p.isSuperAdmin
+            })
+
+            if (
+                num === botNum &&
+                (
+                    p.admin ||
+                    p.isAdmin ||
+                    p.isSuperAdmin ||
+                    p.admin === 'admin' ||
+                    p.admin === 'superadmin'
+                )
+            ) {
+                botEsAdmin = true
+            }
+        }
+
+        if (!botEsAdmin) {
+            return sock.sendMessage(from, {
+                text: 'NO DETECTO ADMIN (revisa consola)'
+            }, { quoted: m })
+        }
+
         const userJid = `${remNum}@s.whatsapp.net`
 
         await sock.groupParticipantsUpdate(
@@ -103,40 +88,17 @@ handler.run = async (sock, m, args) => {
         )
 
         await sock.sendMessage(from, {
-            react: { text: '👑', key: m.key }
-        })
+            text: `Promovido @${remNum}`,
+            mentions: [userJid]
+        }, { quoted: m })
 
-        await sock.sendMessage(
-            from,
-            {
-                text:
-                    `\`🌊 CAPITÁN ASCENDIDO 🦈\`\n` +
-                    `Ahora gobiernas estas aguas @${remNum}\n\n` +
-                    `> ${config.BOT_NAME}`,
-                mentions: [userJid]
-            },
-            { quoted: m }
-        )
     } catch (err) {
+        console.log(err)
         await sock.sendMessage(from, {
-            react: { text: '❌', key: m.key }
-        })
-
-        await sock.sendMessage(
-            from,
-            {
-                text:
-                    `\`❌ No se pudo asignar rango\`\n` +
-                    `${err.message}`
-            },
-            { quoted: m }
-        )
+            text: String(err)
+        }, { quoted: m })
     }
 }
 
-handler.command = ['autoadmin', 'micapitan']
-handler.help = ['autoadmin']
-handler.tags = ['grupo']
-handler.menu = true
-
+handler.command = ['autoadmin']
 export default handler
