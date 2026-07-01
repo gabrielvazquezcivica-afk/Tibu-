@@ -9,7 +9,7 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 let commands = new Map()
 
-// Cargar plugins
+// Cargar plugins, solo mostrar total
 async function loadPlugins() {
     commands.clear()
     const pluginsDir = path.join(__dirname, 'plugins')
@@ -18,21 +18,26 @@ async function loadPlugins() {
     console.log(chalk.magentaBright('📂 Cargando Plugins...\n'))
     const files = fs.readdirSync(pluginsDir).filter(f => f.endsWith('.js'))
 
+    let totalComandos = 0
+
     for (const file of files) {
         try {
             const plugin = await import(`./plugins/${file}`)
             const handler = plugin.default
-            if (handler && Array.isArray(handler.command)) {
+            if (handler && Array.isArray(handler.command) && Array.isArray(handler.help)) {
                 for (const cmd of handler.command) {
                     commands.set(cmd.toLowerCase(), handler)
                 }
-                console.log(chalk.greenBright(`✅ ${file} → ${handler.command.join(', ')}`))
+                totalComandos += handler.help.length
+                // Solo mensaje sin listar comandos
+                console.log(chalk.greenBright(`✅ ${file}`))
             }
         } catch (err) {
             console.log(chalk.redBright(`❌ ${file} → ${err.message}`))
         }
     }
-    console.log(chalk.blueBright(`\n🔌 Total de comandos cargados: ${commands.size}\n`))
+
+    console.log(chalk.blueBright(`\n🔌 Total de comandos cargados: ${totalComandos}\n`))
 }
 
 // Ejecutar comando
@@ -65,31 +70,24 @@ async function startBot() {
         await loadPlugins()
 
         sock.ev.on('messages.upsert', async ({ messages, type }) => {
-            // Solo mensajes nuevos
             if (type !== 'notify') return
 
             const m = messages[0]
-            // Ignorar si es mensaje propio o no tiene contenido
             if (!m || m.key.fromMe || !m.message) return
 
-            // Extraer texto RÁPIDO y SALIR si no tiene prefijo
             const texto = m.message.conversation ||
                           m.message.extendedTextMessage?.text || ''
 
             if (!texto.startsWith(config.PREFIX)) return
 
-            // Marcar como visto solo si ES comando
             await sock.readMessages([m.key])
 
-            // Extraer comando y argumentos
             const [comando, ...args] = texto.slice(config.PREFIX.length).trim().split(' ')
 
-            // Datos para consola (solo si es comando)
             const nombreUsuario = m.pushName || 'Desconocido'
             const esGrupo = m.key.remoteJid?.endsWith('@g.us')
             let nombreGrupo = 'Chat Privado'
 
-            // Solo consultar nombre de grupo si es necesario
             if (esGrupo) {
                 try {
                     nombreGrupo = (await sock.groupMetadata(m.key.remoteJid)).subject
@@ -104,11 +102,9 @@ async function startBot() {
             console.log(chalk.white(`║ 📍 EN: ${esGrupo ? `GRUPO: ${nombreGrupo}` : 'CHAT PRIVADO'}`.padEnd(38) + '║'))
             console.log(chalk.yellowBright('╚══════════════════════════════════════╝\n'))
 
-            // Ejecutar comando
             await runCommand(sock, m, comando, args)
         })
 
-        // Reconexión
         sock.ev.on('connection.update', ({ connection }) => {
             if (connection === 'close') {
                 console.log(chalk.redBright('\n🔌 Conexión perdida. Reintentando en 5 segundos...\n'))
