@@ -100,7 +100,7 @@ handler.run = async (sock, m, args) => {
 
     try {
         await sock.sendMessage(from, {
-            image: { url: 'https://files.catbox.moe/273uw0.png' },
+            image: { url: 'https://files.catbox.moe/57rwz7.png' },
             caption: texto
         }, { quoted: m })
     } catch {
