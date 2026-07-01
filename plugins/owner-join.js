@@ -4,7 +4,7 @@ import path from 'path'
 
 const rutaOwners = path.join(process.cwd(), 'database', 'owners.json')
 
-function leerExtras() {
+function leerOwners() {
     try {
         return JSON.parse(fs.readFileSync(rutaOwners, 'utf8'))
     } catch {
@@ -12,8 +12,14 @@ function leerExtras() {
     }
 }
 
-function limpiarNum(n) {
-    return n.replace(/[^0-9]/g, '')
+function limpiarNumero(num = '') {
+    num = String(num).replace(/[^0-9]/g, '')
+
+    if (num.startsWith('521') && num.length === 13) {
+        num = '52' + num.slice(3)
+    }
+
+    return num
 }
 
 let handler = {}
@@ -21,73 +27,100 @@ let handler = {}
 handler.run = async (sock, m, args) => {
     const from = m.key.remoteJid
     const sender = m.key.participant || m.key.remoteJid
-    const senderNum = limpiarNum(sender)
+    const senderNum = limpiarNumero(sender)
 
-    // Verificar dueños: fijos + agregados
-    const fijos = [...config.owner.map(limpiarNum), ...config.ownerLid.map(limpiarNum)]
-    const extras = leerExtras().map(o => limpiarNum(o.number))
-    const todosDueños = [...fijos, ...extras]
+    const owners = [
+        ...config.owner.map(limpiarNumero).filter(Boolean),
+        ...config.ownerLid.map(limpiarNumero).filter(Boolean)
+    ]
 
-    if (!todosDueños.includes(senderNum)) {
-        await sock.sendMessage(from, { react: { text: '🦈', key: m.key } })
-        return sock.sendMessage(from, {
-            text: '`🚫 Solo los capitanes pueden usar este comando`'
-        }, { quoted: m })
+    for (const o of leerOwners()) {
+        if (o.number) owners.push(limpiarNumero(o.number))
+        if (o.id) owners.push(limpiarNumero(o.id))
     }
 
-    // Obtener link: por respuesta o argumento
-    let link
-    if (m.quoted && m.quoted.message) {
-        const textoLink = m.quoted.message.conversation || m.quoted.message.extendedTextMessage?.text || ''
-        link = textoLink.match(/chat.whatsapp.com\/([A-Za-z0-9_-]+)/)?.[0]
-    } else if (args[0]) {
-        link = args[0].match(/chat.whatsapp.com\/([A-Za-z0-9_-]+)/)?.[0]
+    if (!owners.includes(senderNum)) {
+        return sock.sendMessage(
+            from,
+            { text: '`🚫 Solo capitanes pueden usar este comando`' },
+            { quoted: m }
+        )
     }
 
-    if (!link) {
-        await sock.sendMessage(from, { react: { text: '🌊', key: m.key } })
-        return sock.sendMessage(from, {
-            text: '`🌊 Responde a un enlace o envíalo con el comando`\nEj: `.join enlace`'
-        }, { quoted: m })
+    let texto = args.join(' ')
+
+    if (!texto && m.quoted?.text) {
+        texto = m.quoted.text
     }
 
-    const codigo = link.split('/')[1]
+    if (!texto && m.quoted?.message) {
+        texto = JSON.stringify(m.quoted.message)
+    }
+
+    const match = texto.match(/chat\.whatsapp\.com\/([A-Za-z0-9]+)/i)
+
+    if (!match) {
+        return sock.sendMessage(
+            from,
+            {
+                text:
+                    '`❌ Envíame o responde a un link de invitación`\n' +
+                    'Ej:\n.join https://chat.whatsapp.com/...'
+            },
+            { quoted: m }
+        )
+    }
+
+    const inviteCode = match[1]
 
     try {
-        await sock.sendMessage(from, { react: { text: '⏳', key: m.key } })
+        const grupo = await sock.groupAcceptInvite(inviteCode)
+        const metadata = await sock.groupMetadata(grupo)
 
-        // Unirse al grupo
-        const grupoId = await sock.acceptInvite(codigo)
+        const ownerMention = [sender]
 
-        // Obtener datos del grupo
-        const metadata = await sock.groupMetadata(grupoId)
-        const nombreGrupo = metadata.subject || 'Grupo desconocido'
-        const participantes = metadata.participants.map(p => p.id)
+        // Aviso en grupo al entrar
+        await sock.sendMessage(
+            grupo,
+            {
+                text:
+                    `\`🌊 TIBU BOT CONECTADO 🦈\`\n\n` +
+                    `Fui agregado por @${senderNum}\n` +
+                    `Listo para navegar estas aguas.\n\n` +
+                    `> ${config.BOT_NAME}`,
+                mentions: ownerMention
+            }
+        )
 
-        await sock.sendMessage(from, { react: { text: '✅', key: m.key } })
+        // Aviso al owner donde ejecutó comando
+        await sock.sendMessage(
+            from,
+            {
+                text:
+                    `\`✅ GRUPO UNIDO\`\n` +
+                    `Entré correctamente a:\n` +
+                    `${metadata.subject}`
+            },
+            { quoted: m }
+        )
 
-        // Aviso al grupo mencionando a todos
-        await sock.sendMessage(grupoId, {
-            text: `\`🌊 HE ENTRADO A NAVEGAR 🦈\`\nSaludos a todos los miembros de este grupo.\n\n> ${config.BOT_NAME}`,
-            mentions: participantes
-        })
+    } catch (e) {
+        console.log('ERROR JOIN:', e)
 
-        // Aviso en el mismo chat donde se usó el comando
-        await sock.sendMessage(from, {
-            text: `\`✅ ENTRADA EXITOSA 🏴‍☠️\nHe ingresado al grupo:\n📌 ${nombreGrupo}\n🆔 ${grupoId}`
-        }, { quoted: m })
-
-    } catch (err) {
-        await sock.sendMessage(from, { react: { text: '❌', key: m.key } })
-        let mensajeError = 'No pude entrar al grupo.'
-        if (err.message.includes('403')) mensajeError = '`❌ No tengo permiso o el enlace está revocado`'
-        if (err.message.includes('409')) mensajeError = '`❌ Ya estoy en ese grupo`'
-        return sock.sendMessage(from, { text: mensajeError }, { quoted: m })
+        await sock.sendMessage(
+            from,
+            {
+                text:
+                    `\`❌ No pude entrar al grupo\`\n` +
+                    `${e.message || e}`
+            },
+            { quoted: m }
+        )
     }
 }
 
-handler.command = ['join', 'unirme']
-handler.help = ['join <enlace> o responde al enlace']
+handler.command = ['join']
+handler.help = ['join <link>']
 handler.tags = ['owner']
 handler.menu = true
 
