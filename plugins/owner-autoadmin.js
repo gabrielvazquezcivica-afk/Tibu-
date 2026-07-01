@@ -12,16 +12,12 @@ function leerOwnersExtras() {
     }
 }
 
-function limpiarNum(n) {
-    return n.replace(/[^0-9]/g, '')
-}
-
 let handler = {}
 
 handler.run = async (sock, m, args) => {
     const from = m.key.remoteJid
     const sender = m.key.participant || m.key.remoteJid
-    const senderNum = limpiarNum(sender)
+    const senderNum = sender.split('@')[0]
     const isGroup = from.endsWith('@g.us')
 
     if (m.key.fromMe) return
@@ -33,9 +29,9 @@ handler.run = async (sock, m, args) => {
         }, { quoted: m })
     }
 
-    // Verificar dueños fijos + agregados
-    const fijos = [...config.owner.map(limpiarNum), ...config.ownerLid.map(limpiarNum)]
-    const extras = leerOwnersExtras().map(o => limpiarNum(o.number))
+    // Verificar dueños fijos y agregados
+    const fijos = [...config.owner, ...config.ownerLid]
+    const extras = leerOwnersExtras().map(o => o.number)
     const todosDueños = [...fijos, ...extras]
 
     if (!todosDueños.includes(senderNum)) {
@@ -57,9 +53,9 @@ handler.run = async (sock, m, args) => {
 
     const participantes = metadata.participants || []
 
-    // ✅ PRIMERO: Verificar si el bot es admin
-    const botId = limpiarNum(sock.user.id)
-    const datosBot = participantes.find(p => limpiarNum(p.id) === botId)
+    // ✅ DETECCIÓN DIRECTA COMO LO REPORTA WHATSAPP
+    const botId = sock.user.id.replace(/:.*@/, '@')
+    const datosBot = participantes.find(p => p.id === botId)
     const botEsAdmin = datosBot?.admin === 'admin' || datosBot?.admin === 'superadmin'
 
     if (!botEsAdmin) {
@@ -69,8 +65,7 @@ handler.run = async (sock, m, args) => {
         }, { quoted: m })
     }
 
-    // ✅ SEGUNDO: Verificar si tú ya eres admin
-    const datosUsuario = participantes.find(p => limpiarNum(p.id) === senderNum)
+    const datosUsuario = participantes.find(p => p.id === sender)
     const yaEsAdmin = datosUsuario?.admin === 'admin' || datosUsuario?.admin === 'superadmin'
 
     if (yaEsAdmin) {
@@ -80,7 +75,6 @@ handler.run = async (sock, m, args) => {
         }, { quoted: m })
     }
 
-    // Dar admin
     await sock.sendMessage(from, { react: { text: '👑', key: m.key } })
     try {
         await sock.groupParticipantsUpdate(from, [sender], 'promote')
