@@ -304,6 +304,7 @@ if (muted) return
 
       // Ejecutar todos en paralelo
       Promise.allSettled(tareas)
+     }
     })
 
     // 🔄 RECONEXIÓN
