@@ -5,7 +5,7 @@ import { fileURLToPath } from 'url'
 import fetch from 'node-fetch'
 import chalk from 'chalk'
 import config from './config.js'
-import { muteWatcher } from './lib/mutewatcher.js'
+import { muteWatcher } from './lib/muteWatcher.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
