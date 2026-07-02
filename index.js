@@ -257,10 +257,10 @@ async function startBot() {
 
     // 📩 MENSAJES: PROCESAR VARIOS COMANDOS EN PARALELO Y MOSTRAR EN CONSOLA
     sock.ev.on('messages.upsert', async ({ messages, type }) => {
-      if (type !== 'notify') return
+  if (type !== 'notify') return
 
-      const m = messages[0]
-      if (!m || m.key.fromMe || !m.message) return
+  for (const m of messages) {
+    if (!m || m.key.fromMe || !m.message) continue
 
 const muted = await muteWatcher(sock, m)
 if (muted) return
