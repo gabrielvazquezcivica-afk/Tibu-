@@ -233,7 +233,7 @@ async function startBot() {
       }
     })
 
-    // 📩 MENSAJES: PROCESAR VARIOS COMANDOS EN PARALELO
+    // 📩 MENSAJES: PROCESAR VARIOS COMANDOS EN PARALELO Y MOSTRAR EN CONSOLA
     sock.ev.on('messages.upsert', async ({ messages, type }) => {
       if (type !== 'notify') return
 
@@ -245,7 +245,7 @@ async function startBot() {
 
       sock.readMessages([m.key]).catch(() => {})
 
-      // Separar si vienen varios comandos en el mismo mensaje (ej: .menu .info .hora)
+      // Separar si vienen varios comandos en el mismo mensaje
       const bloques = texto.split(config.PREFIX).filter(b => b.trim())
 
       const nombreUsuario = m.pushName || 'Desconocido'
@@ -257,20 +257,25 @@ async function startBot() {
         nombreGrupo = meta?.subject || 'Grupo'
       }
 
+      // Mostrar encabezado general
       console.log(chalk.yellowBright('╔══════════════════════════════════════╗'))
-      console.log(chalk.yellowBright(`║ 📥 COMANDOS: ${bloques.length} detectados`))
       console.log(chalk.white(`║ 👤 USUARIO: ${nombreUsuario.padEnd(28)} ║`))
       console.log(chalk.white(`║ 📍 EN: ${esGrupo ? `GRUPO: ${nombreGrupo}` : 'CHAT PRIVADO'}`.padEnd(38) + '║'))
-      console.log(chalk.yellowBright('╚══════════════════════════════════════╝\n'))
 
-      // Ejecutar TODOS EN PARALELO (no esperar uno para otro)
+      // Ejecutar y mostrar CADA COMANDO por separado
       const tareas = bloques.map(async bloque => {
         const [comando, ...args] = bloque.trim().split(' ')
         if (!comando) return
+
+        // Mostrar comando en consola
+        console.log(chalk.yellowBright(`║ 📥 COMANDO: ${config.PREFIX}${comando.padEnd(26)} ║`))
+
         return runCommand(sock, m, comando, args)
       })
 
-      // Esperar a que terminen todos sin bloquear otros mensajes
+      console.log(chalk.yellowBright('╚══════════════════════════════════════╝\n'))
+
+      // Ejecutar todos en paralelo
       Promise.allSettled(tareas)
     })
 
