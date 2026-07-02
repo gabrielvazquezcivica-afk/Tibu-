@@ -26,31 +26,30 @@ handler.run = async (sock, m, args, { isAdmin }) => {
     return sock.sendMessage(from, { text: '`🦈 Solo administradores pueden usar este comando`' }, { quoted: m })
   }
 
-  // Obtener todos los miembros reales del grupo
   const metadata = await sock.groupMetadata(from)
   const todosMiembros = metadata.participants.map(p => p.id)
 
   const datos = leerContadores()
   const grupo = datos[from] || {}
 
-  // Buscar: sin registro O con valor -10
   const fantasmas = todosMiembros.filter(usuario => {
     const cuenta = grupo[usuario]
-    return cuenta === undefined || cuenta === -10
+    return cuenta === undefined || cuenta < 10
   })
 
   if (fantasmas.length === 0) {
     await sock.sendMessage(from, { react: { text: '✅', key: m.key } })
     return sock.sendMessage(from, {
-      text: `👻 ` + '`SIN USUARIOS FANTASMAS`' + `\n\nTodos los miembros tienen mensajes registrados.`,
+      text: `👻 ` + '`SIN USUARIOS FANTASMAS`' + `\n\nTodos tienen 10 o más mensajes.`,
       quoted: m
     })
   }
 
+  await sock.sendMessage(from, { react: { text: '👻', key: m.key } })
   const listaMenciones = fantasmas.map(u => `• @${u.split('@')[0]}`).join('\n')
 
   await sock.sendMessage(from, {
-    text: `👻 ` + '`USUARIOS FANTASMAS`' + `\n(Sin mensajes o con -10)\n\n${listaMenciones}`,
+    text: `👻 ` + '`USUARIOS FANTASMAS`' + `\n(Menos de 10 mensajes o sin actividad)\n\n${listaMenciones}`,
     mentions: fantasmas
   }, { quoted: m })
 }
