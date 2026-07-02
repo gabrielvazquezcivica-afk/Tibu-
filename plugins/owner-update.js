@@ -16,7 +16,6 @@ function leerOwners() {
 function limpiarNumero(num = '') {
     num = String(num).replace(/[^0-9]/g, '')
 
-    // México
     if (num.startsWith('521') && num.length === 13) {
         num = '52' + num.slice(3)
     }
@@ -26,7 +25,7 @@ function limpiarNumero(num = '') {
 
 let handler = {}
 
-handler.run = async (sock, m, args) => {
+handler.run = async (sock, m) => {
     const from = m.key.remoteJid
     const sender = m.key.participant || m.key.remoteJid
     const senderNum = limpiarNumero(sender)
@@ -45,55 +44,53 @@ handler.run = async (sock, m, args) => {
         await sock.sendMessage(from, {
             react: { text: '🚫', key: m.key }
         })
-        return sock.sendMessage(
-            from,
-            { text: '`🚫 Solo capitanes pueden actualizarme`' },
-            { quoted: m }
-        )
+        return
     }
 
     await sock.sendMessage(from, {
         react: { text: '🔄', key: m.key }
     })
 
-    exec('git pull', async (error, stdout, stderr) => {
-        if (error || stderr) {
+    exec('git pull origin main', async (error, stdout, stderr) => {
+        if (error) {
             await sock.sendMessage(from, {
                 react: { text: '❌', key: m.key }
             })
 
-            return sock.sendMessage(
-                from,
-                {
-                    text:
-                        `\`❌ UPDATE FALLÓ\`\n\n` +
-                        `${error?.message || stderr}`
-                },
-                { quoted: m }
-            )
+            return sock.sendMessage(from, {
+                text: `\`❌ UPDATE FALLÓ\`\n${error.message}`
+            }, { quoted: m })
         }
 
         const sinCambios =
             stdout.includes('Already up to date') ||
             stdout.includes('Already up-to-date')
 
+        if (sinCambios) {
+            await sock.sendMessage(from, {
+                react: { text: '✅', key: m.key }
+            })
+
+            return sock.sendMessage(from, {
+                text: '`✅ Ya estaba actualizado`'
+            }, { quoted: m })
+        }
+
         await sock.sendMessage(from, {
-            react: { text: sinCambios ? '✅' : '🚀', key: m.key }
+            react: { text: '🚀', key: m.key }
         })
 
-        return sock.sendMessage(
-            from,
-            {
-                text: sinCambios
-                    ? `\`✅ SIN CAMBIOS\`\nEl bot ya estaba actualizado.`
-                    : `\`🚀 BOT ACTUALIZADO\`\n\n${stdout}`
-            },
-            { quoted: m }
-        )
+        await sock.sendMessage(from, {
+            text: '`🚀 Actualizado, reiniciando...`'
+        }, { quoted: m })
+
+        setTimeout(() => {
+            exec('pm2 restart Tibu')
+        }, 1500)
     })
 }
 
-handler.command = ['update', 'actualizar']
+handler.command = ['update', 'up']
 handler.help = ['update']
 handler.tags = ['owner']
 handler.menu = true
