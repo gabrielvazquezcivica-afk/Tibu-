@@ -43,15 +43,7 @@ function estaBaneado(numero) {
 iniciarBaneados()
 
 // ─── SISTEMA DE MUTE PERSISTENTE (AGREGADO) ───
-const rutaMute = path.join(process.cwd(), 'database', 'muteados.json')
-function cargarMuteados() {
-  try {
-    return JSON.parse(fs.readFileSync(rutaMute, 'utf8'))
-  } catch {
-    return {}
-  }
-}
-export async function borrarSiMuteado(sock, m) {
+
   const from = m.key.remoteJid
   const remitente = m.key.participant || m.key.remoteJid
 
@@ -297,10 +289,7 @@ async function startBot() {
 await muteWatcher(sock, m)
 
       // ✅ AGREGADO: BORRAR MENSAJE SI ESTÁ SILENCIADO
-      if (!m.key.fromMe) {
-  await borrarSiMuteado(sock, m)
-}
-
+      
       const texto = m.message.conversation || m.message.extendedTextMessage?.text || ''
       if (!texto.startsWith(config.PREFIX)) return
 
