@@ -72,20 +72,19 @@ handler.run = async (sock, m) => {
     }
 
     let texto =
-        `👻 𝐅𝐀𝐍𝐓𝐀𝐒𝐌𝐀𝐒 𝐃𝐄𝐓𝐄𝐂𝐓𝐀𝐃𝐎𝐒\n\n`
+    `👻 𝐅𝐀𝐍𝐓𝐀𝐒𝐌𝐀𝐒 𝐃𝐄𝐓𝐄𝐂𝐓𝐀𝐃𝐎𝐒\n\n`
 
-    const mentions = []
+const mentions = []
 
-    for (const p of fantasmas) {
-        const id = p.id || p.jid
-        const numero = id.replace(/[^0-9]/g, '')
-        const mensajes = grupoDB[id] || 0
+for (const p of fantasmas) {
+    const id = p.id || p.jid
+    const numero = id.replace(/[^0-9]/g, '')
 
-        texto += `👤 @${numero} — ${mensajes} msj\n`
-        mentions.push(id)
-    }
+    texto += `👤 @${numero}\n`
+    mentions.push(id)
+}
 
-    texto += `\n> ${config.BOT_NAME}`
+texto += `\n> ${config.BOT_NAME}`
 
     await sock.sendMessage(from, {
         react: { text: '👻', key: m.key }
