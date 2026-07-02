@@ -42,6 +42,19 @@ function estaBaneado(numero) {
 }
 iniciarBaneados()
 
+// ─── SISTEMA DE CONTADOR DE MENSAJES (AGREGADO) ───
+const rutaMsgCount = path.join(process.cwd(), 'database', 'msgcount.json')
+function leerContadores() {
+  try {
+    return JSON.parse(fs.readFileSync(rutaMsgCount, 'utf8'))
+  } catch {
+    return {}
+  }
+}
+function guardarContadores(datos) {
+  fs.writeFileSync(rutaMsgCount, JSON.stringify(datos, null, 2))
+}
+
 
 // ─── FUNCIONES DE VERIFICACIÓN OPTIMIZADAS ───
 async function isAdmin(sock, groupId, userJid) {
@@ -257,54 +270,63 @@ async function startBot() {
 
     // 📩 MENSAJES: PROCESAR VARIOS COMANDOS EN PARALELO Y MOSTRAR EN CONSOLA
     sock.ev.on('messages.upsert', async ({ messages, type }) => {
-  if (type !== 'notify') return
+      if (type !== 'notify') return
 
-  for (const m of messages) {
-    if (!m || m.key.fromMe || !m.message) continue
+      for (const m of messages) {
+        if (!m || m.key.fromMe || !m.message) continue
 
-const muted = await muteWatcher(sock, m)
-if (muted) return
+        const muted = await muteWatcher(sock, m)
+        if (muted) return
 
-      // ✅ AGREGADO: BORRAR MENSAJE SI ESTÁ SILENCIADO
-      
-      const texto = m.message.conversation || m.message.extendedTextMessage?.text || ''
-      if (!texto.startsWith(config.PREFIX)) return
+        // ✅ CONTAR MENSAJE (AGREGADO)
+        const from = m.key.remoteJid
+        const remitente = m.key.participant || m.key.remoteJid
+        if (from.endsWith('@g.us')) {
+          const datos = leerContadores()
+          if (!datos[from]) datos[from] = {}
+          if (!datos[from][remitente]) datos[from][remitente] = 0
+          datos[from][remitente] += 1
+          guardarContadores(datos)
+        }
 
-      sock.readMessages([m.key]).catch(() => {})
+        const texto = m.message.conversation || m.message.extendedTextMessage?.text || ''
+        if (!texto.startsWith(config.PREFIX)) return
 
-      // Separar si vienen varios comandos en el mismo mensaje
-      const bloques = texto.split(config.PREFIX).filter(b => b.trim())
+        sock.readMessages([m.key]).catch(() => {})
 
-      const nombreUsuario = m.pushName || 'Desconocido'
-      const esGrupo = m.key.remoteJid?.endsWith('@g.us')
-      let nombreGrupo = 'Chat Privado'
+        // Separar si vienen varios comandos en el mismo mensaje
+        const bloques = texto.split(config.PREFIX).filter(b => b.trim())
 
-      if (esGrupo) {
-        const meta = cache.groupMeta.get(m.key.remoteJid)
-        nombreGrupo = meta?.subject || 'Grupo'
+        const nombreUsuario = m.pushName || 'Desconocido'
+        const esGrupo = m.key.remoteJid?.endsWith('@g.us')
+        let nombreGrupo = 'Chat Privado'
+
+        if (esGrupo) {
+          const meta = cache.groupMeta.get(m.key.remoteJid)
+          nombreGrupo = meta?.subject || 'Grupo'
+        }
+
+        // Mostrar encabezado general
+        console.log(chalk.yellowBright('╔══════════════════════════════════════╗'))
+        console.log(chalk.white(`║ 👤 USUARIO: ${nombreUsuario.padEnd(28)} ║`))
+        console.log(chalk.white(`║ 📍 EN: ${esGrupo ? `GRUPO: ${nombreGrupo}` : 'CHAT PRIVADO'}`.padEnd(38) + '║'))
+
+        // Ejecutar y mostrar CADA COMANDO por separado
+        const tareas = bloques.map(async bloque => {
+          const [comando, ...args] = bloque.trim().split(' ')
+          if (!comando) return
+
+          // Mostrar comando en consola
+          console.log(chalk.yellowBright(`║ 📥 COMANDO: ${config.PREFIX}${comando.padEnd(26)} ║`))
+
+          return runCommand(sock, m, comando, args)
+        })
+
+        console.log(chalk.yellowBright('╚══════════════════════════════════════╝\n'))
+
+        // Ejecutar todos en paralelo
+        Promise.allSettled(tareas)
       }
-
-      // Mostrar encabezado general
-      console.log(chalk.yellowBright('╔══════════════════════════════════════╗'))
-      console.log(chalk.white(`║ 👤 USUARIO: ${nombreUsuario.padEnd(28)} ║`))
-      console.log(chalk.white(`║ 📍 EN: ${esGrupo ? `GRUPO: ${nombreGrupo}` : 'CHAT PRIVADO'}`.padEnd(38) + '║'))
-
-      // Ejecutar y mostrar CADA COMANDO por separado
-      const tareas = bloques.map(async bloque => {
-        const [comando, ...args] = bloque.trim().split(' ')
-        if (!comando) return
-
-        // Mostrar comando en consola
-        console.log(chalk.yellowBright(`║ 📥 COMANDO: ${config.PREFIX}${comando.padEnd(26)} ║`))
-
-        return runCommand(sock, m, comando, args)
-      })
-
-      console.log(chalk.yellowBright('╚══════════════════════════════════════╝\n'))
-
-      // Ejecutar todos en paralelo
-      Promise.allSettled(tareas)
-     }
     })
 
     // 🔄 RECONEXIÓN
