@@ -177,4 +177,4 @@ handler.help = ['unwarn @usuario']
 handler.tags = ['grupo']
 handler.menu = true
 
-export 
+export default handler
