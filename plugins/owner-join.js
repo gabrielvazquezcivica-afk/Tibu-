@@ -35,11 +35,15 @@ handler.run = async (sock, m, args) => {
     ]
 
     for (const o of leerOwners()) {
-        if (o.number) owners.push(limpiarNumero(o.number))
-        if (o.id) owners.push(limpiarNumero(o.id))
+        if (o?.number) owners.push(limpiarNumero(o.number))
+        if (o?.id) owners.push(limpiarNumero(o.id))
     }
 
     if (!owners.includes(senderNum)) {
+        await sock.sendMessage(from, {
+            react: { text: '🚫', key: m.key }
+        })
+
         return sock.sendMessage(
             from,
             { text: '`🚫 Solo capitanes pueden usar este comando`' },
@@ -47,19 +51,37 @@ handler.run = async (sock, m, args) => {
         )
     }
 
-    let texto = args.join(' ')
+    let texto = args.join(' ').trim()
 
-    if (!texto && m.quoted?.text) {
-        texto = m.quoted.text
+    const quoted =
+        m.message?.extendedTextMessage?.contextInfo?.quotedMessage
+
+    if (!texto) {
+        texto =
+            m.message?.conversation ||
+            m.message?.extendedTextMessage?.text ||
+            ''
     }
 
-    if (!texto && m.quoted?.message) {
-        texto = JSON.stringify(m.quoted.message)
+    if (!texto && quoted) {
+        texto =
+            quoted.conversation ||
+            quoted.extendedTextMessage?.text ||
+            quoted.imageMessage?.caption ||
+            quoted.videoMessage?.caption ||
+            quoted.documentMessage?.caption ||
+            JSON.stringify(quoted)
     }
 
-    const match = texto.match(/chat\.whatsapp\.com\/([A-Za-z0-9]+)/i)
+    const match = texto.match(
+        /(?:https?:\/\/)?chat\.whatsapp\.com\/([A-Za-z0-9]+)/i
+    )
 
     if (!match) {
+        await sock.sendMessage(from, {
+            react: { text: '❌', key: m.key }
+        })
+
         return sock.sendMessage(
             from,
             {
@@ -74,12 +96,13 @@ handler.run = async (sock, m, args) => {
     const inviteCode = match[1]
 
     try {
+        await sock.sendMessage(from, {
+            react: { text: '⏳', key: m.key }
+        })
+
         const grupo = await sock.groupAcceptInvite(inviteCode)
         const metadata = await sock.groupMetadata(grupo)
 
-        const ownerMention = [sender]
-
-        // Aviso en grupo al entrar
         await sock.sendMessage(
             grupo,
             {
@@ -88,24 +111,30 @@ handler.run = async (sock, m, args) => {
                     `Fui agregado por @${senderNum}\n` +
                     `Listo para navegar estas aguas.\n\n` +
                     `> ${config.BOT_NAME}`,
-                mentions: ownerMention
+                mentions: [sender]
             }
         )
 
-        // Aviso al owner donde ejecutó comando
+        await sock.sendMessage(from, {
+            react: { text: '✅', key: m.key }
+        })
+
         await sock.sendMessage(
             from,
             {
                 text:
                     `\`✅ GRUPO UNIDO\`\n` +
-                    `Entré correctamente a:\n` +
-                    `${metadata.subject}`
+                    `Entré correctamente a:\n${metadata.subject}`
             },
             { quoted: m }
         )
 
     } catch (e) {
         console.log('ERROR JOIN:', e)
+
+        await sock.sendMessage(from, {
+            react: { text: '❌', key: m.key }
+        })
 
         await sock.sendMessage(
             from,
