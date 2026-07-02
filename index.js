@@ -11,11 +11,13 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 let commands = new Map()
 
-// ─── CACHÉ PARA EVITAR CONSULTAS REPETIDAS ───
+// ─── CACHÉ MEJORADO ───
 const cache = {
   admins: new Map(),
   groupMeta: new Map(),
   citados: new Map(),
+  contadores: null, // Caché para contadores de mensajes
+  baneados: null,   // Caché para lista de baneados
   limpiarJid: jid => jid.replace(/[:].*@/, '@').trim()
 }
 
@@ -25,36 +27,37 @@ setInterval(() => {
   cache.citados.clear()
 }, 10 * 60 * 1000)
 
-// ─── SISTEMA DE BANEOS (AGREGADO) ───
+// ─── SISTEMA DE BANEOS OPTIMIZADO ───
 const rutaBaneados = path.join(process.cwd(), 'database', 'baneados.json')
 function iniciarBaneados() {
   try {
     if (!fs.existsSync(rutaBaneados)) fs.writeFileSync(rutaBaneados, JSON.stringify([], null, 2))
-  } catch {}
+    cache.baneados = JSON.parse(fs.readFileSync(rutaBaneados, 'utf8'))
+  } catch {
+    cache.baneados = []
+  }
 }
 function estaBaneado(numero) {
-  try {
-    const lista = JSON.parse(fs.readFileSync(rutaBaneados, 'utf8'))
-    return lista.includes(String(numero).replace(/[^0-9]/g, ''))
-  } catch {
-    return false
-  }
+  if (!cache.baneados) iniciarBaneados()
+  return cache.baneados.includes(String(numero).replace(/[^0-9]/g, ''))
 }
 iniciarBaneados()
 
-// ─── SISTEMA DE CONTADOR DE MENSAJES (AGREGADO) ───
+// ─── SISTEMA DE CONTADOR CON CACHÉ ───
 const rutaMsgCount = path.join(process.cwd(), 'database', 'msgcount.json')
 function leerContadores() {
+  if (cache.contadores) return cache.contadores
   try {
-    return JSON.parse(fs.readFileSync(rutaMsgCount, 'utf8'))
+    cache.contadores = JSON.parse(fs.readFileSync(rutaMsgCount, 'utf8'))
+    return cache.contadores
   } catch {
     return {}
   }
 }
 function guardarContadores(datos) {
-  fs.writeFileSync(rutaMsgCount, JSON.stringify(datos, null, 2))
+  cache.contadores = datos
+  fs.writeFile(rutaMsgCount, JSON.stringify(datos, null, 2), () => {}) // Escritura no bloqueante
 }
-
 
 // ─── FUNCIONES DE VERIFICACIÓN OPTIMIZADAS ───
 async function isAdmin(sock, groupId, userJid) {
@@ -102,7 +105,7 @@ const sistema = async (sock, from, titulo = `${config.BOT_NAME} 🦈`) => {
 
       try {
         const pp = await sock.profilePictureUrl(from, 'image')
-        const res = await fetch(pp, { signal: AbortSignal.timeout(3000) })
+        const res = await fetch(pp, { signal: AbortSignal.timeout(2000) }) // Tiempo menor
         const buffer = await res.arrayBuffer()
         thumbnail = Buffer.from(buffer)
       } catch {}
@@ -130,7 +133,7 @@ const sistema = async (sock, from, titulo = `${config.BOT_NAME} 🦈`) => {
   return mensaje
 }
 
-// Cargar plugins
+// ─── CARGA DE PLUGINS MEJORADA ───
 async function loadPlugins() {
   commands.clear()
   const pluginsDir = path.join(__dirname, 'plugins')
@@ -140,8 +143,7 @@ async function loadPlugins() {
   const files = fs.readdirSync(pluginsDir).filter(f => f.endsWith('.js'))
 
   let totalComandos = 0
-
-  for (const file of files) {
+  const cargas = files.map(async file => {
     try {
       const plugin = await import(`./plugins/${file}`)
       const handler = plugin.default
@@ -154,15 +156,16 @@ async function loadPlugins() {
     } catch (err) {
       console.log(chalk.redBright(`❌ ${file} → ${err.message}`))
     }
-  }
+  })
 
+  await Promise.allSettled(cargas) // Carga paralela
   console.log(chalk.blueBright(`\n🔌 Total de comandos cargados: ${totalComandos}\n`))
 }
 
-// Ejecutar comando SIN BLOQUEAR + COMPROBACIÓN DE BANEO SILENCIOSA
+// Ejecutar comando SIN BLOQUEAR
 async function runCommand(sock, msg, comando, args) {
   const usuario = msg.key.participant || msg.key.remoteJid
-  if (estaBaneado(usuario)) return // Simplemente ignora
+  if (estaBaneado(usuario)) return
 
   const cmd = commands.get(comando.toLowerCase())
   if (!cmd) return
@@ -227,7 +230,6 @@ async function startBot() {
           if (!id || !id.endsWith('@g.us')) continue
 
           cache.groupMeta.delete(id)
-          cache.citados.clear()
 
           let actor = author
           if (typeof actor !== 'string') actor = null
@@ -268,7 +270,7 @@ async function startBot() {
       }
     })
 
-    // 📩 MENSAJES: PROCESAR VARIOS COMANDOS EN PARALELO Y MOSTRAR EN CONSOLA
+    // 📩 MENSAJES: PROCESAR MÁS RÁPIDO
     sock.ev.on('messages.upsert', async ({ messages, type }) => {
       if (type !== 'notify') return
 
@@ -278,7 +280,7 @@ async function startBot() {
         const muted = await muteWatcher(sock, m)
         if (muted) return
 
-        // ✅ CONTAR MENSAJE (AGREGADO)
+        // Contar mensajes con caché
         const from = m.key.remoteJid
         const remitente = m.key.participant || m.key.remoteJid
         if (from.endsWith('@g.us')) {
@@ -294,37 +296,23 @@ async function startBot() {
 
         sock.readMessages([m.key]).catch(() => {})
 
-        // Separar si vienen varios comandos en el mismo mensaje
         const bloques = texto.split(config.PREFIX).filter(b => b.trim())
-
         const nombreUsuario = m.pushName || 'Desconocido'
         const esGrupo = m.key.remoteJid?.endsWith('@g.us')
-        let nombreGrupo = 'Chat Privado'
+        const nombreGrupo = esGrupo ? (cache.groupMeta.get(m.key.remoteJid)?.subject || 'Grupo') : 'Chat Privado'
 
-        if (esGrupo) {
-          const meta = cache.groupMeta.get(m.key.remoteJid)
-          nombreGrupo = meta?.subject || 'Grupo'
-        }
-
-        // Mostrar encabezado general
         console.log(chalk.yellowBright('╔══════════════════════════════════════╗'))
         console.log(chalk.white(`║ 👤 USUARIO: ${nombreUsuario.padEnd(28)} ║`))
         console.log(chalk.white(`║ 📍 EN: ${esGrupo ? `GRUPO: ${nombreGrupo}` : 'CHAT PRIVADO'}`.padEnd(38) + '║'))
 
-        // Ejecutar y mostrar CADA COMANDO por separado
         const tareas = bloques.map(async bloque => {
           const [comando, ...args] = bloque.trim().split(' ')
           if (!comando) return
-
-          // Mostrar comando en consola
           console.log(chalk.yellowBright(`║ 📥 COMANDO: ${config.PREFIX}${comando.padEnd(26)} ║`))
-
           return runCommand(sock, m, comando, args)
         })
 
         console.log(chalk.yellowBright('╚══════════════════════════════════════╝\n'))
-
-        // Ejecutar todos en paralelo
         Promise.allSettled(tareas)
       }
     })
