@@ -172,9 +172,9 @@ handlerUnwarn.run = async (sock, m) => {
     }, { quoted: m })
 }
 
-handlerUnwarn.command = ['unwarn']
-handlerUnwarn.help = ['unwarn @usuario']
-handlerUnwarn.tags = ['grupo']
-handlerUnwarn.menu = true
+handler.command = ['unwarn']
+handler.help = ['unwarn @usuario']
+handler.tags = ['grupo']
+handler.menu = true
 
-export { handlerWarn as default, handlerUnwarn }
+export 
