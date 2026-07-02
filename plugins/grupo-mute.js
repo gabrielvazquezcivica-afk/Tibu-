@@ -17,11 +17,15 @@ function guardarDB(db) {
     fs.writeFileSync(ruta, JSON.stringify(db, null, 2))
 }
 
+function limpiarJid(jid = '') {
+    return String(jid).replace(/:\d+@/, '@').trim()
+}
+
 let handler = {}
 
 handler.run = async (sock, m) => {
     const from = m.key.remoteJid
-    const sender = m.key.participant || m.key.remoteJid
+    const sender = limpiarJid(m.key.participant || m.key.remoteJid)
 
     if (!from.endsWith('@g.us')) {
         return sock.sendMessage(from, {
@@ -33,7 +37,9 @@ handler.run = async (sock, m) => {
     const participantes = metadata.participants || []
 
     const adminInfo = participantes.find(
-        p => p.id === sender || p.jid === sender
+        p =>
+            limpiarJid(p.id) === sender ||
+            limpiarJid(p.jid) === sender
     )
 
     const isAdmin =
@@ -63,6 +69,8 @@ handler.run = async (sock, m) => {
             text: '`❌ Responde o menciona un usuario`'
         }, { quoted: m })
     }
+
+    target = limpiarJid(target)
 
     const db = leerDB()
 
