@@ -42,9 +42,9 @@ let handler = {
     }
   },
 
-  command: ['promote', 'daradmin'],
-  help: ['promote @usuario'],
-  tags: ['grupo']
+handler.command: ['promote', 'daradmin'],
+handler.help: ['promote @usuario'],
+handler.tags: ['grupo']
 }
 
 export default handler
