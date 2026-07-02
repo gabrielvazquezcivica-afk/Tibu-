@@ -41,6 +41,29 @@ function estaBaneado(numero) {
 }
 iniciarBaneados()
 
+// ─── SISTEMA DE MUTE PERSISTENTE (AGREGADO) ───
+const rutaMute = path.join(process.cwd(), 'database', 'muteados.json')
+function cargarMuteados() {
+  try {
+    return JSON.parse(fs.readFileSync(rutaMute, 'utf8'))
+  } catch {
+    return {}
+  }
+}
+export async function borrarSiMuteado(sock, m) {
+  const from = m.key.remoteJid
+  const remitente = m.key.participant || m.key.remoteJid
+  if (!from || !from.endsWith('@g.us') || !remitente) return
+
+  const lista = cargarMuteados()
+  const clave = `${from}-${remitente}`
+  if (lista[clave]) {
+    try {
+      await sock.sendMessage(from, { delete: m.key })
+    } catch {}
+  }
+}
+
 // ─── FUNCIONES DE VERIFICACIÓN OPTIMIZADAS ───
 async function isAdmin(sock, groupId, userJid) {
   const clave = `${groupId}-${cache.limpiarJid(userJid)}`
@@ -259,6 +282,9 @@ async function startBot() {
 
       const m = messages[0]
       if (!m || m.key.fromMe || !m.message) return
+
+      // ✅ AGREGADO: BORRAR MENSAJE SI ESTÁ SILENCIADO
+      await borrarSiMuteado(sock, m)
 
       const texto = m.message.conversation || m.message.extendedTextMessage?.text || ''
       if (!texto.startsWith(config.PREFIX)) return
