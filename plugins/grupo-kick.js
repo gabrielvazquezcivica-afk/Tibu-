@@ -90,6 +90,21 @@ handler.run = async (sock, m) => {
         }, { quoted: m })
     }
 
+    const targetInfo = participantes.find(
+        p => p.id === target || p.jid === target
+    )
+
+    // Protección al dueño del grupo
+    if (targetInfo?.admin === 'superadmin') {
+        await sock.sendMessage(from, {
+            react: { text: '👑', key: m.key }
+        })
+
+        return sock.sendMessage(from, {
+            text: '`👑 No puedes expulsar al dueño del grupo`'
+        }, { quoted: m })
+    }
+
     const numero = limpiarNumero(target)
 
     try {
