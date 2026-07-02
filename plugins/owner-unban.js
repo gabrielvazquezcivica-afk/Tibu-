@@ -60,7 +60,7 @@ handler.run = async (sock, m, args) => {
 }
 
 handler.command = ['unban']
-handler.help = ['unban @usuario', 'unban (responder mensaje)']
+handler.help = ['unban @usuario']
 handler.tags = ['owner']
 handler.menu = true
 
