@@ -42,30 +42,6 @@ function estaBaneado(numero) {
 }
 iniciarBaneados()
 
-// ─── SISTEMA DE MUTE PERSISTENTE (AGREGADO) ───
-
-  const from = m.key.remoteJid
-  const remitente = m.key.participant || m.key.remoteJid
-
-  if (!from || !from.endsWith('@g.us') || !remitente) return
-
-  const lista = cargarMuteados()
-  const usuariosMuteados = lista[from] || []
-
-  const estaMuteado =
-    usuariosMuteados.includes(remitente) ||
-    usuariosMuteados.includes(remitente.replace(/:\d+@/, '@'))
-
-  if (!estaMuteado) return
-
-  try {
-    await sock.sendMessage(from, {
-      delete: m.key
-    })
-  } catch (e) {
-    console.log('DELETE ERROR:', e.message)
-  }
-}
 
 // ─── FUNCIONES DE VERIFICACIÓN OPTIMIZADAS ───
 async function isAdmin(sock, groupId, userJid) {
