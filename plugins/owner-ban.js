@@ -30,9 +30,13 @@ handler.run = async (sock, m, args) => {
   const sender = m.key.participant || m.key.remoteJid
   const senderNum = limpiarNumero(sender)
 
-  // Solo dueños
-  const esDueno = config.owner.map(limpiarNumero).includes(senderNum) ||
-                  config.ownerLid.map(limpiarNumero).includes(senderNum)
+  // Lista de dueños principales
+  const duenosPrincipales = config.owner.map(limpiarNumero).filter(Boolean)
+  const duenosLid = config.ownerLid.map(limpiarNumero).filter(Boolean)
+  const todosDuenos = [...duenosPrincipales, ...duenosLid]
+
+  // Solo dueños pueden ejecutar
+  const esDueno = todosDuenos.includes(senderNum)
 
   if (!esDueno) {
     await sock.sendMessage(from, { react: { text: '🚫', key: m.key } })
@@ -51,8 +55,18 @@ handler.run = async (sock, m, args) => {
     return sock.sendMessage(from, { text: '`❌ Menciona o responde al usuario a banear`' }, { quoted: m })
   }
 
-  const lista = leerBaneados()
   const numUsuario = limpiarNumero(usuario)
+
+  // 🚫 NUEVO: No permite banear a dueños principales
+  if (duenosPrincipales.includes(numUsuario)) {
+    await sock.sendMessage(from, { react: { text: '⛔', key: m.key } })
+    return sock.sendMessage(from, {
+      text: '`⛔ No puedes banear a un capitán principal`',
+      mentions: [usuario]
+    }, { quoted: m })
+  }
+
+  const lista = leerBaneados()
 
   if (lista.includes(numUsuario)) {
     await sock.sendMessage(from, { react: { text: '⚠️', key: m.key } })
