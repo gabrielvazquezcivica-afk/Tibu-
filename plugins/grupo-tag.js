@@ -89,7 +89,7 @@ handler.run = async (sock, m, args) => {
                         quoted[type]?.caption ||
                         args.join(' ') ||
                         ''
-                    ) + footer(global.config?.BOT_NAME || 'Tibu Bot')
+                    ) + footer(config.BOT_NAME || 'Tibu Bot')
             }
 
             if (mediaType === 'audio') {
