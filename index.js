@@ -24,6 +24,23 @@ setInterval(() => {
   cache.citados.clear()
 }, 10 * 60 * 1000)
 
+// ─── SISTEMA DE BANEOS (AGREGADO) ───
+const rutaBaneados = path.join(process.cwd(), 'database', 'baneados.json')
+function iniciarBaneados() {
+  try {
+    if (!fs.existsSync(rutaBaneados)) fs.writeFileSync(rutaBaneados, JSON.stringify([], null, 2))
+  } catch {}
+}
+function estaBaneado(numero) {
+  try {
+    const lista = JSON.parse(fs.readFileSync(rutaBaneados, 'utf8'))
+    return lista.includes(String(numero).replace(/[^0-9]/g, ''))
+  } catch {
+    return false
+  }
+}
+iniciarBaneados()
+
 // ─── FUNCIONES DE VERIFICACIÓN OPTIMIZADAS ───
 async function isAdmin(sock, groupId, userJid) {
   const clave = `${groupId}-${cache.limpiarJid(userJid)}`
@@ -127,8 +144,11 @@ async function loadPlugins() {
   console.log(chalk.blueBright(`\n🔌 Total de comandos cargados: ${totalComandos}\n`))
 }
 
-// Ejecutar comando SIN BLOQUEAR
+// Ejecutar comando SIN BLOQUEAR + COMPROBACIÓN DE BANEO SILENCIOSA
 async function runCommand(sock, msg, comando, args) {
+  const usuario = msg.key.participant || msg.key.remoteJid
+  if (estaBaneado(usuario)) return // Simplemente ignora
+
   const cmd = commands.get(comando.toLowerCase())
   if (!cmd) return
   try {
