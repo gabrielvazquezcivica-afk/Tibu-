@@ -1,10 +1,13 @@
-import config from '../config.js'
+import { downloadContentFromMessage } from '@whiskeysockets/baileys'
+
+function footer(name) {
+    return `\n\n> ${name}`
+}
 
 let handler = {}
 
 handler.run = async (sock, m, args) => {
     const from = m.key.remoteJid
-    const sender = m.key.participant || m.key.remoteJid
 
     if (!from.endsWith('@g.us')) {
         return sock.sendMessage(from, {
@@ -21,98 +24,107 @@ handler.run = async (sock, m, args) => {
         }, { quoted: m })
     }
 
-    const participantes = metadata.participants || []
+    const participants = metadata.participants || []
+    const sender = m.key.participant || m.key.remoteJid
 
-    const userInfo = participantes.find(
+    const userInfo = participants.find(
         p => p.id === sender || p.jid === sender
     )
 
-    const esAdmin =
+    const isAdmin =
         userInfo?.admin === 'admin' ||
         userInfo?.admin === 'superadmin'
 
-    if (!esAdmin) {
-        await sock.sendMessage(from, {
-            react: { text: '🚫', key: m.key }
-        })
+    if (!isAdmin) {
         return sock.sendMessage(from, {
             text: '`🚫 Solo admins pueden usarlo`'
         }, { quoted: m })
     }
 
-    const mentions = participantes.map(p => p.jid || p.id)
-
     await sock.sendMessage(from, {
         react: { text: '📢', key: m.key }
     })
 
-    // RESPONDIENDO A MENSAJE
-    if (m.quoted) {
-        const q = m.quoted
-        const msg = q.message || {}
+    const mentions = participants.map(p => p.id || p.jid)
+    const quoted =
+        m.message?.extendedTextMessage?.contextInfo?.quotedMessage
 
-        if (msg.conversation || q.text) {
-            return sock.sendMessage(from, {
-                text: `${q.text}\n\n> ${config.BOT_NAME}`,
-                mentions
-            })
+    if (quoted) {
+        const type = Object.keys(quoted)[0]
+        let msg = {}
+
+        // Texto
+        if (type === 'conversation' || type === 'extendedTextMessage') {
+            msg.text =
+                (
+                    quoted.conversation ||
+                    quoted.extendedTextMessage?.text ||
+                    ''
+                ) + footer(global.config?.BOT_NAME || 'Tibu Bot')
         }
 
-        if (msg.imageMessage) {
-            return sock.sendMessage(from, {
-                image: { url: q.download() },
-                caption: `${msg.imageMessage.caption || ''}\n\n> ${config.BOT_NAME}`,
-                mentions
-            })
+        // Media
+        else {
+            const mediaType = type.replace('Message', '')
+            const stream = await downloadContentFromMessage(
+                quoted[type],
+                mediaType
+            )
+
+            let buffer = Buffer.from([])
+
+            for await (const chunk of stream) {
+                buffer = Buffer.concat([buffer, chunk])
+            }
+
+            msg[mediaType] = buffer
+
+            if (
+                mediaType === 'image' ||
+                mediaType === 'video' ||
+                mediaType === 'document'
+            ) {
+                msg.caption =
+                    (
+                        quoted[type]?.caption ||
+                        args.join(' ') ||
+                        ''
+                    ) + footer(global.config?.BOT_NAME || 'Tibu Bot')
+            }
+
+            if (mediaType === 'audio') {
+                msg.ptt = quoted[type]?.ptt || false
+                msg.mimetype =
+                    quoted[type]?.mimetype || 'audio/mp4'
+            }
+
+            if (mediaType === 'document') {
+                msg.fileName = quoted[type]?.fileName || 'archivo'
+                msg.mimetype = quoted[type]?.mimetype
+            }
         }
 
-        if (msg.videoMessage) {
-            return sock.sendMessage(from, {
-                video: { url: q.download() },
-                caption: `${msg.videoMessage.caption || ''}\n\n> ${config.BOT_NAME}`,
-                mentions
-            })
-        }
+        msg.mentions = mentions
 
-        if (msg.audioMessage) {
-            return sock.sendMessage(from, {
-                audio: { url: q.download() },
-                mimetype: 'audio/mp4',
-                ptt: msg.audioMessage.ptt || false,
-                mentions
-            })
-        }
-
-        if (msg.stickerMessage) {
-            return sock.sendMessage(from, {
-                sticker: { url: q.download() },
-                mentions
-            })
-        }
-
-        if (msg.documentMessage) {
-            return sock.sendMessage(from, {
-                document: { url: q.download() },
-                fileName: msg.documentMessage.fileName,
-                mimetype: msg.documentMessage.mimetype,
-                mentions
-            })
-        }
+        return sock.sendMessage(from, msg, { quoted: m })
     }
 
-    // TEXTO NORMAL
-    const texto = args.join(' ').trim()
+    const text = args.join(' ').trim()
 
-    if (!texto) {
+    if (!text) {
         return sock.sendMessage(from, {
-            text: '`❌ Escribe o responde a un mensaje`'
+            text: '`❌ Usa .n <texto> o responde a un mensaje`'
         }, { quoted: m })
     }
 
-    await sock.sendMessage(from, {
-        text: `${texto}\n\n> ${config.BOT_NAME}`,
-        mentions
-    })
+    await sock.sendMessage(
+        from,
+        {
+            text: text + footer(global.config?.BOT_NAME || 'Tibu Bot'),
+            mentions
+        },
+        { quoted: m }
+    )
 }
 
 handler.command = ['n']
