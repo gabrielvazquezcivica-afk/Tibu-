@@ -78,8 +78,9 @@ handler.run = async (sock, m) => {
             react: { text: '❌', key: m.key }
         })
         return sock.sendMessage(from, {
-            text: '`❌ Responde o menciona a alguien`'
-        }, { quoted: m })
+            text: '`❌ Ejemplos de uso:`\n> .kick @usuario o responde a un mensaje\n> .kick @usuario1 @usuario2 @usuario3',
+            quoted: m
+        })
     }
 
     // PROTECCIÓN: NO EXPULSAR AL DUEÑO
