@@ -262,7 +262,8 @@ async function startBot() {
       const m = messages[0]
       if (!m || m.key.fromMe || !m.message) return
 
-await muteWatcher(sock, m)
+const muted = await muteWatcher(sock, m)
+if (muted) return
 
       // ✅ AGREGADO: BORRAR MENSAJE SI ESTÁ SILENCIADO
       
