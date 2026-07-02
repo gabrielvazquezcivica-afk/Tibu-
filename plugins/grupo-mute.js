@@ -13,25 +13,12 @@ function leerDB() {
 }
 
 function guardarDB(db) {
-    try {
-        fs.mkdirSync(path.dirname(ruta), { recursive: true })
-
-        console.log('RUTA:', ruta)
-        console.log('DB A GUARDAR:', JSON.stringify(db, null, 2))
-
-        fs.writeFileSync(
-            ruta,
-            JSON.stringify(db, null, 2),
-            'utf8'
-        )
-
-        console.log(
-            'ARCHIVO DESPUES:',
-            fs.readFileSync(ruta, 'utf8')
-        )
-    } catch (e) {
-        console.log('ERROR GUARDANDO:', e)
-    }
+    fs.mkdirSync(path.dirname(ruta), { recursive: true })
+    fs.writeFileSync(
+        ruta,
+        JSON.stringify(db, null, 2),
+        'utf8'
+    )
 }
 
 function limpiarJid(jid = '') {
@@ -51,14 +38,22 @@ handler.run = async (sock, m) => {
     if (!from.endsWith('@g.us')) {
         return sock.sendMessage(
             from,
-            {
-                text: '`🌊 Solo funciona en grupos`'
-            },
+            { text: '`🌊 Solo funciona en grupos`' },
             { quoted: m }
         )
     }
 
-    const metadata = await sock.groupMetadata(from)
+    let metadata
+    try {
+        metadata = await sock.groupMetadata(from)
+    } catch {
+        return sock.sendMessage(
+            from,
+            { text: '`❌ No pude leer el grupo`' },
+            { quoted: m }
+        )
+    }
+
     const participantes = metadata.participants || []
 
     const adminInfo = participantes.find(
@@ -92,15 +87,10 @@ handler.run = async (sock, m) => {
     if (!target) {
         return sock.sendMessage(
             from,
-            {
-                text: '`❌ Responde o menciona un usuario`'
-            },
+            { text: '`❌ Responde o menciona un usuario`' },
             { quoted: m }
         )
     }
-
-    console.log('FROM:', from)
-    console.log('TARGET RAW:', target)
 
     target = limpiarJid(target)
 
@@ -108,17 +98,26 @@ handler.run = async (sock, m) => {
 
     if (!db[from]) db[from] = []
 
-    console.log('TARGET LIMPIO:', target)
-    console.log('DB ANTES:', db)
-    console.log('INCLUDES:', db[from].includes(target))
+    if (db[from].includes(target)) {
+        await sock.sendMessage(from, {
+            react: { text: '⚠️', key: m.key }
+        })
 
-    if (!db[from].includes(target)) {
-        db[from].push(target)
-
-        console.log('DB NUEVO:', db)
-
-        guardarDB(db)
+        return sock.sendMessage(
+            from,
+            {
+                text:
+                    `🌊 𝐘𝐀 𝐄𝐒𝐓𝐀 𝐒𝐈𝐋𝐄𝐍𝐂𝐈𝐀𝐃𝐎 ⚠️\n\n` +
+                    `👤 Usuario: @${target.split('@')[0]}\n\n` +
+                    `> ${config.BOT_NAME}`,
+                mentions: [target]
+            },
+            { quoted: m }
+        )
     }
+
+    db[from].push(target)
+    guardarDB(db)
 
     const numero = target.split('@')[0]
     const adminNum = sender.split('@')[0]
