@@ -29,18 +29,21 @@ handler.run = async (sock, m, args, { isAdmin }) => {
   const datos = leerContadores()
   const grupo = datos[from] || {}
 
-  // Buscar usuarios con -10 mensajes
+  // Buscar usuarios con exactamente -10 mensajes
   const fantasmas = Object.keys(grupo).filter(usuario => grupo[usuario] === -10)
 
   if (fantasmas.length === 0) {
     await sock.sendMessage(from, { react: { text: '✅', key: m.key } })
-    return sock.sendMessage(from, { text: '`✅ No hay usuarios con -10 mensajes`' }, { quoted: m })
+    return sock.sendMessage(from, {
+      text: `👻 ` + '`SIN USUARIOS FANTASMAS`' + `\n\nNo hay miembros con -10 mensajes registrados.`,
+      quoted: m
+    })
   }
 
   const listaMenciones = fantasmas.map(u => `• @${u.split('@')[0]}`).join('\n')
 
   await sock.sendMessage(from, {
-    text: `👻 ` + '`USUARIOS FANTASMAS`' + `\n\n${listaMenciones}`,
+    text: `👻 ` + '`USUARIOS FANTASMAS (-10 MENSAJES)`' + `\n\n${listaMenciones}`,
     mentions: fantasmas
   }, { quoted: m })
 }
