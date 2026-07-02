@@ -53,14 +53,24 @@ function cargarMuteados() {
 export async function borrarSiMuteado(sock, m) {
   const from = m.key.remoteJid
   const remitente = m.key.participant || m.key.remoteJid
+
   if (!from || !from.endsWith('@g.us') || !remitente) return
 
   const lista = cargarMuteados()
-  const clave = `${from}-${remitente}`
-  if (lista[clave]) {
-    try {
-      await sock.sendMessage(from, { delete: m.key })
-    } catch {}
+  const usuariosMuteados = lista[from] || []
+
+  const estaMuteado =
+    usuariosMuteados.includes(remitente) ||
+    usuariosMuteados.includes(remitente.replace(/:\d+@/, '@'))
+
+  if (!estaMuteado) return
+
+  try {
+    await sock.sendMessage(from, {
+      delete: m.key
+    })
+  } catch (e) {
+    console.log('DELETE ERROR:', e.message)
   }
 }
 
@@ -284,7 +294,9 @@ async function startBot() {
       if (!m || m.key.fromMe || !m.message) return
 
       // ✅ AGREGADO: BORRAR MENSAJE SI ESTÁ SILENCIADO
-      await borrarSiMuteado(sock, m)
+      if (!m.key.fromMe) {
+  await borrarSiMuteado(sock, m)
+}
 
       const texto = m.message.conversation || m.message.extendedTextMessage?.text || ''
       if (!texto.startsWith(config.PREFIX)) return
