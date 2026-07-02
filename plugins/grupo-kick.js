@@ -65,23 +65,15 @@ handler.run = async (sock, m) => {
         }, { quoted: m })
     }
 
-    let target = null
+    // OBTENER TODOS LOS MENCIONADOS O EL CITADO
+    const quotedParticipant = m.message?.extendedTextMessage?.contextInfo?.participant
+    const mentioned = m.message?.extendedTextMessage?.contextInfo?.mentionedJid || []
 
-    const quotedParticipant =
-        m.message?.extendedTextMessage?.contextInfo?.participant
+    let objetivos = []
+    if (quotedParticipant) objetivos.push(quotedParticipant)
+    if (mentioned.length) objetivos.push(...mentioned)
 
-    if (quotedParticipant) {
-        target = quotedParticipant
-    }
-
-    const mentioned =
-        m.message?.extendedTextMessage?.contextInfo?.mentionedJid
-
-    if (!target && mentioned?.length) {
-        target = mentioned[0]
-    }
-
-    if (!target) {
+    if (objetivos.length === 0) {
         await sock.sendMessage(from, {
             react: { text: '❌', key: m.key }
         })
@@ -90,48 +82,41 @@ handler.run = async (sock, m) => {
         }, { quoted: m })
     }
 
-    const targetInfo = participantes.find(
-        p => p.id === target || p.jid === target
-    )
-
-    // Protección al dueño del grupo
-    if (targetInfo?.admin === 'superadmin') {
+    // PROTECCIÓN: NO EXPULSAR AL DUEÑO
+    const tieneDueno = objetivos.some(u => {
+        const info = participantes.find(p => p.id === u || p.jid === u)
+        return info?.admin === 'superadmin'
+    })
+    if (tieneDueno) {
         await sock.sendMessage(from, {
             react: { text: '👑', key: m.key }
         })
-
         return sock.sendMessage(from, {
             text: '`👑 No puedes expulsar al dueño del grupo`'
         }, { quoted: m })
     }
 
-    const numero = limpiarNumero(target)
-
     try {
-        await sock.sendMessage(from, {
-            react: { text: '🦈', key: m.key }
-        })
+        await sock.sendMessage(from, { react: { text: '🦈', key: m.key } })
 
-        await sock.sendMessage(from, {
-            text:
-                `🌊 𝐄𝐗𝐏𝐔𝐋𝐒𝐀𝐃𝐎 🦈\n\n` +
-                `Adiós @${numero}\n\n` +
-                `> ${config.BOT_NAME}`,
-            mentions: [target]
-        }, { quoted: m })
+        let texto, menciones
+        if (objetivos.length === 1) {
+            const num = limpiarNumero(objetivos[0])
+            texto = `🌊 𝐄𝐗𝐏𝐔𝐋𝐒𝐀𝐃𝐎 🦈\n\nAdiós @${num}\n\n> ${config.BOT_NAME}`
+            menciones = [objetivos[0]]
+        } else {
+            const lista = objetivos.map(u => `• @${limpiarNumero(u)}`).join('\n')
+            texto = `🌊 𝐄𝐗𝐏𝐔𝐋𝐒𝐀𝐃𝐎𝐒 🦈\n\nSe han retirado:\n${lista}\n\n> ${config.BOT_NAME}`
+            menciones = objetivos
+        }
 
-        await sock.groupParticipantsUpdate(from, [target], 'remove')
+        await sock.sendMessage(from, { text: texto, mentions: menciones }, { quoted: m })
+        await sock.groupParticipantsUpdate(from, objetivos, 'remove')
 
     } catch (e) {
         console.log('ERROR KICK:', e)
-
-        await sock.sendMessage(from, {
-            react: { text: '❌', key: m.key }
-        })
-
-        await sock.sendMessage(from, {
-            text: '`❌ No pude expulsarlo`'
-        }, { quoted: m })
+        await sock.sendMessage(from, { react: { text: '❌', key: m.key } })
+        await sock.sendMessage(from, { text: '`❌ No pude expulsarlo/s`' }, { quoted: m })
     }
 }
 
