@@ -42,7 +42,7 @@ let handler = {
     }
   },
 
-  command: ['promote', 'ascender'],
+  command: ['promote', 'daradmin'],
   help: ['promote @usuario'],
   tags: ['grupo']
 }
