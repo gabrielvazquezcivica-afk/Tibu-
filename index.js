@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url'
 import fetch from 'node-fetch'
 import chalk from 'chalk'
 import config from './config.js'
+import { muteWatcher } from './lib/mutewatcher.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -292,6 +293,8 @@ async function startBot() {
 
       const m = messages[0]
       if (!m || m.key.fromMe || !m.message) return
+
+await muteWatcher(sock, m)
 
       // ✅ AGREGADO: BORRAR MENSAJE SI ESTÁ SILENCIADO
       if (!m.key.fromMe) {
