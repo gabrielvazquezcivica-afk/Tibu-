@@ -42,7 +42,7 @@ let handler = {
     }
   },
 
-handler.command: ['demote', 'daradmin'],
+handler.command: ['demote', 'quitaradmin'],
 handler.help: ['demote @usuario']
 handler.tags: ['grupo']
 }
