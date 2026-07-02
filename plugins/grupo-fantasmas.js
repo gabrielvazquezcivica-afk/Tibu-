@@ -1,61 +1,94 @@
 import fs from 'fs'
 import path from 'path'
 
+function limpiarNumero(num = '') {
+    return String(num).replace(/[^0-9]/g, '')
+}
+
 const rutaMsgCount = path.join(process.cwd(), 'database', 'msgcount.json')
 
 function leerContadores() {
-  try {
-    return JSON.parse(fs.readFileSync(rutaMsgCount, 'utf8'))
-  } catch {
-    return {}
-  }
+    try {
+        return JSON.parse(fs.readFileSync(rutaMsgCount, 'utf8'))
+    } catch {
+        return {}
+    }
 }
 
 let handler = {}
 
-handler.run = async (sock, m, args, { isAdmin }) => {
-  const from = m.key.remoteJid
-  const sender = m.key.participant || m.key.remoteJid
+handler.run = async (sock, m) => {
+    const from = m.key.remoteJid
+    const sender = m.key.participant || m.key.remoteJid
 
-  if (!from.endsWith('@g.us')) {
-    return sock.sendMessage(from, { text: '`🌊 Este comando es solo para grupos`' }, { quoted: m })
-  }
+    if (!from.endsWith('@g.us')) {
+        await sock.sendMessage(from, {
+            react: { text: '🌊', key: m.key }
+        })
+        return sock.sendMessage(from, {
+            text: '`🌊 Solo funciona en grupos`'
+        }, { quoted: m })
+    }
 
-  if (!await isAdmin(sock, from, sender)) {
-    await sock.sendMessage(from, { react: { text: '⛔', key: m.key } })
-    return sock.sendMessage(from, { text: '`🦈 Solo administradores pueden usar este comando`' }, { quoted: m })
-  }
+    let metadata
+    try {
+        metadata = await sock.groupMetadata(from)
+    } catch {
+        return sock.sendMessage(from, {
+            text: '`❌ No pude leer el grupo`'
+        }, { quoted: m })
+    }
 
-  const metadata = await sock.groupMetadata(from)
-  const todosMiembros = metadata.participants.map(p => p.id)
+    const participantes = metadata.participants || []
 
-  const datos = leerContadores()
-  const grupo = datos[from] || {}
+    // Verificación de Admin IGUAL a tu ejemplo
+    const userInfo = participantes.find(
+        p => p.id === sender || p.jid === sender
+    )
+    const isAdmin =
+        userInfo?.admin === 'admin' ||
+        userInfo?.admin === 'superadmin'
 
-  const fantasmas = todosMiembros.filter(usuario => {
-    const cuenta = grupo[usuario]
-    return cuenta === undefined || cuenta < 10
-  })
+    if (!isAdmin) {
+        await sock.sendMessage(from, {
+            react: { text: '🚫', key: m.key }
+        })
+        return sock.sendMessage(from, {
+            text: '`🚫 Solo administradores pueden usar este comando`'
+        }, { quoted: m })
+    }
 
-  if (fantasmas.length === 0) {
-    await sock.sendMessage(from, { react: { text: '✅', key: m.key } })
-    return sock.sendMessage(from, {
-      text: `👻 ` + '`SIN USUARIOS FANTASMAS`' + `\n\nTodos tienen 10 o más mensajes.`,
-      quoted: m
-    })
-  }
+    const datos = leerContadores()
+    const grupo = datos[from] || {}
 
-  await sock.sendMessage(from, { react: { text: '👻', key: m.key } })
-  const listaMenciones = fantasmas.map(u => `• @${u.split('@')[0]}`).join('\n')
+    // Regla: menos de 10 mensajes o sin registro = fantasma
+    const fantasmas = participantes
+        .map(p => p.id)
+        .filter(usuario => {
+            const cuenta = grupo[usuario]
+            return cuenta === undefined || cuenta < 10
+        })
 
-  await sock.sendMessage(from, {
-    text: `👻 ` + '`USUARIOS FANTASMAS`' + `\n(Menos de 10 mensajes o sin actividad)\n\n${listaMenciones}`,
-    mentions: fantasmas
-  }, { quoted: m })
+    if (fantasmas.length === 0) {
+        await sock.sendMessage(from, { react: { text: '✅', key: m.key } })
+        return sock.sendMessage(from, {
+            text: '`👻 SIN USUARIOS FANTASMAS`\n\nTodos tienen 10 o más mensajes registrados.',
+            quoted: m
+        })
+    }
+
+    await sock.sendMessage(from, { react: { text: '👻', key: m.key } })
+    const lista = fantasmas.map(u => `• @${limpiarNumero(u)}`).join('\n')
+
+    await sock.sendMessage(from, {
+        text: `\`👻 USUARIOS FANTASMAS\`\n(Menos de 10 mensajes o sin actividad)\n\n${lista}`,
+        mentions: fantasmas
+    }, { quoted: m })
 }
 
 handler.command = ['fantasmas']
 handler.help = ['fantasmas']
 handler.tags = ['grupo']
+handler.menu = true
 
 export default handler
