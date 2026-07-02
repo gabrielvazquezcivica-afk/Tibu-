@@ -57,9 +57,20 @@ handler.run = async (sock, m, args) => {
 
     const mentions = participantes.map(p => p.id || p.jid)
 
+    const text = args.join(' ').trim()
+
     const quoted =
         m.message?.extendedTextMessage?.contextInfo?.quotedMessage
 
+    // PRIORIDAD: si escribió texto después de .n, manda eso
+    if (text) {
+        return sock.sendMessage(from, {
+            text: text + footer(),
+            mentions
+        }, { quoted: m })
+    }
+
+    // Si NO escribió texto, usar mensaje respondido
     if (quoted) {
         const type = Object.keys(quoted)[0]
         let msg = {}
@@ -92,11 +103,7 @@ handler.run = async (sock, m, args) => {
                 mediaType === 'document'
             ) {
                 msg.caption =
-                    (
-                        quoted[type]?.caption ||
-                        args.join(' ') ||
-                        ''
-                    ) + footer()
+                    (quoted[type]?.caption || '') + footer()
             }
 
             if (mediaType === 'audio') {
@@ -115,20 +122,12 @@ handler.run = async (sock, m, args) => {
         return sock.sendMessage(from, msg, { quoted: m })
     }
 
-    const text = args.join(' ').trim()
-
-    if (!text) {
-        await sock.sendMessage(from, {
-            react: { text: '❌', key: m.key }
-        })
-        return sock.sendMessage(from, {
-            text: '`❌ Usa .n <texto> o responde un mensaje`'
-        }, { quoted: m })
-    }
-
     await sock.sendMessage(from, {
-        text: text + footer(),
-        mentions
+        react: { text: '❌', key: m.key }
+    })
+
+    return sock.sendMessage(from, {
+        text: '`❌ Usa .n <texto> o responde un mensaje`'
     }, { quoted: m })
 }
 
