@@ -13,24 +13,49 @@ function leerDB() {
 }
 
 function guardarDB(db) {
-    fs.mkdirSync(path.dirname(ruta), { recursive: true })
-    fs.writeFileSync(ruta, JSON.stringify(db, null, 2))
+    try {
+        fs.mkdirSync(path.dirname(ruta), { recursive: true })
+
+        console.log('RUTA:', ruta)
+        console.log('DB A GUARDAR:', JSON.stringify(db, null, 2))
+
+        fs.writeFileSync(
+            ruta,
+            JSON.stringify(db, null, 2),
+            'utf8'
+        )
+
+        console.log(
+            'ARCHIVO DESPUES:',
+            fs.readFileSync(ruta, 'utf8')
+        )
+    } catch (e) {
+        console.log('ERROR GUARDANDO:', e)
+    }
 }
 
 function limpiarJid(jid = '') {
-    return String(jid).replace(/:\d+@/, '@').trim()
+    return String(jid)
+        .replace(/:\d+@/, '@')
+        .trim()
 }
 
 let handler = {}
 
 handler.run = async (sock, m) => {
     const from = m.key.remoteJid
-    const sender = limpiarJid(m.key.participant || m.key.remoteJid)
+    const sender = limpiarJid(
+        m.key.participant || m.key.remoteJid
+    )
 
     if (!from.endsWith('@g.us')) {
-        return sock.sendMessage(from, {
-            text: '`🌊 Solo funciona en grupos`'
-        }, { quoted: m })
+        return sock.sendMessage(
+            from,
+            {
+                text: '`🌊 Solo funciona en grupos`'
+            },
+            { quoted: m }
+        )
     }
 
     const metadata = await sock.groupMetadata(from)
@@ -65,10 +90,17 @@ handler.run = async (sock, m) => {
     if (!target && mentioned?.length) target = mentioned[0]
 
     if (!target) {
-        return sock.sendMessage(from, {
-            text: '`❌ Responde o menciona un usuario`'
-        }, { quoted: m })
+        return sock.sendMessage(
+            from,
+            {
+                text: '`❌ Responde o menciona un usuario`'
+            },
+            { quoted: m }
+        )
     }
+
+    console.log('FROM:', from)
+    console.log('TARGET RAW:', target)
 
     target = limpiarJid(target)
 
@@ -76,8 +108,15 @@ handler.run = async (sock, m) => {
 
     if (!db[from]) db[from] = []
 
+    console.log('TARGET LIMPIO:', target)
+    console.log('DB ANTES:', db)
+    console.log('INCLUDES:', db[from].includes(target))
+
     if (!db[from].includes(target)) {
         db[from].push(target)
+
+        console.log('DB NUEVO:', db)
+
         guardarDB(db)
     }
 
@@ -88,14 +127,18 @@ handler.run = async (sock, m) => {
         react: { text: '🔇', key: m.key }
     })
 
-    await sock.sendMessage(from, {
-        text:
-            `🌊 𝐔𝐒𝐔𝐀𝐑𝐈𝐎 𝐒𝐈𝐋𝐄𝐍𝐂𝐈𝐀𝐃𝐎 🔇\n\n` +
-            `👤 Usuario: @${numero}\n` +
-            `🦈 Silenciado por: @${adminNum}\n\n` +
-            `> ${config.BOT_NAME}`,
-        mentions: [target, sender]
-    }, { quoted: m })
+    await sock.sendMessage(
+        from,
+        {
+            text:
+                `🌊 𝐔𝐒𝐔𝐀𝐑𝐈𝐎 𝐒𝐈𝐋𝐄𝐍𝐂𝐈𝐀𝐃𝐎 🔇\n\n` +
+                `👤 Usuario: @${numero}\n` +
+                `🦈 Silenciado por: @${adminNum}\n\n` +
+                `> ${config.BOT_NAME}`,
+            mentions: [target, sender]
+        },
+        { quoted: m }
+    )
 }
 
 handler.command = ['mute']
