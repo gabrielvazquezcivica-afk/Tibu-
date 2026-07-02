@@ -101,7 +101,7 @@ handler.run = async (sock, m, args, { isAdmin, isBotAdmin }) => {
     }
 }
 
-handler.command = ['abrir', 'cerrar']
+handler.command = ['abrir', 'cerrar', 'open', 'close']
 handler.help = ['abrir', 'cerrar']
 handler.tags = ['grupo']
 handler.menu = true
