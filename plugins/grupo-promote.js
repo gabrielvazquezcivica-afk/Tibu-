@@ -42,8 +42,8 @@ let handler = {
     }
   },
 
-handler.command: ['promote', 'daradmin'],
-handler.help: ['promote @usuario'],
+handler.command: ['promote', 'daradmin']
+handler.help: ['promote @usuario']
 handler.tags: ['grupo']
 }
 
