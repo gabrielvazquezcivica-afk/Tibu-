@@ -14,11 +14,9 @@ function leerOwners() {
 
 function limpiarNumero(num = '') {
     num = String(num).replace(/[^0-9]/g, '')
-
     if (num.startsWith('521') && num.length === 13) {
         num = '52' + num.slice(3)
     }
-
     return num
 }
 
@@ -29,122 +27,72 @@ handler.run = async (sock, m, args) => {
     const sender = m.key.participant || m.key.remoteJid
     const senderNum = limpiarNumero(sender)
 
+    // Verificar dueños
     const owners = [
         ...config.owner.map(limpiarNumero).filter(Boolean),
         ...config.ownerLid.map(limpiarNumero).filter(Boolean)
     ]
-
     for (const o of leerOwners()) {
         if (o?.number) owners.push(limpiarNumero(o.number))
         if (o?.id) owners.push(limpiarNumero(o.id))
     }
 
     if (!owners.includes(senderNum)) {
-        await sock.sendMessage(from, {
-            react: { text: '🚫', key: m.key }
-        })
-
-        return sock.sendMessage(
-            from,
-            { text: '`🚫 Solo capitanes pueden usar este comando`' },
-            { quoted: m }
-        )
+        await sock.sendMessage(from, { react: { text: '🚫', key: m.key } })
+        return sock.sendMessage(from, { text: '`🚫 Solo capitanes pueden usar este comando`' }, { quoted: m })
     }
 
-    let texto = args.join(' ').trim()
+    let texto = ''
 
-    const quoted =
-        m.message?.extendedTextMessage?.contextInfo?.quotedMessage
-
-    if (!texto) {
-        texto =
-            m.message?.conversation ||
-            m.message?.extendedTextMessage?.text ||
-            ''
+    // Caso 1: lo pasas como argumento .join enlace
+    if (args.length > 0) {
+        texto = args.join(' ')
+    }
+    // Caso 2: respondes a un mensaje
+    else if (m.quoted) {
+        texto = m.quoted.text || m.quoted.caption || m.quoted.conversation || ''
+    }
+    // Caso 3: viene en el mismo mensaje
+    else {
+        texto = m.text || m.caption || ''
     }
 
-    if (!texto && quoted) {
-        texto =
-            quoted.conversation ||
-            quoted.extendedTextMessage?.text ||
-            quoted.imageMessage?.caption ||
-            quoted.videoMessage?.caption ||
-            quoted.documentMessage?.caption ||
-            JSON.stringify(quoted)
-    }
-
-    const match = texto.match(
-        /(?:https?:\/\/)?chat\.whatsapp\.com\/([A-Za-z0-9]+)/i
-    )
+    // Buscar el enlace
+    const match = texto.match(/(?:https?:\/\/)?chat\.whatsapp\.com\/([A-Za-z0-9]+)/i)
 
     if (!match) {
-        await sock.sendMessage(from, {
-            react: { text: '❌', key: m.key }
-        })
-
-        return sock.sendMessage(
-            from,
-            {
-                text:
-                    '`❌ Envíame o responde a un link de invitación`\n' +
-                    'Ej:\n.join https://chat.whatsapp.com/...'
-            },
-            { quoted: m }
-        )
+        await sock.sendMessage(from, { react: { text: '❌', key: m.key } })
+        return sock.sendMessage(from, {
+            text: '`❌ Envíame o responde a un link de invitación`\nEj:\n.join https://chat.whatsapp.com/...'
+        }, { quoted: m })
     }
 
     const inviteCode = match[1]
 
     try {
-        await sock.sendMessage(from, {
-            react: { text: '⏳', key: m.key }
-        })
+        await sock.sendMessage(from, { react: { text: '⏳', key: m.key } })
 
         const grupo = await sock.groupAcceptInvite(inviteCode)
         const metadata = await sock.groupMetadata(grupo)
 
-        await sock.sendMessage(
-            grupo,
-            {
-                text:
-                    `\`🌊 TIBU BOT CONECTADO 🦈\`\n\n` +
-                    `Fui agregado por @${senderNum}\n` +
-                    `Listo para navegar estas aguas.\n\n` +
-                    `> ${config.BOT_NAME}`,
-                mentions: [sender]
-            }
-        )
-
-        await sock.sendMessage(from, {
-            react: { text: '✅', key: m.key }
+        // Mensaje en el grupo
+        await sock.sendMessage(grupo, {
+            text: `\`🌊 TIBU BOT CONECTADO 🦈\`\n\nFui agregado por @${senderNum}\nListo para navegar estas aguas.\n\n> ${config.BOT_NAME}`,
+            mentions: [sender]
         })
 
-        await sock.sendMessage(
-            from,
-            {
-                text:
-                    `\`✅ GRUPO UNIDO\`\n` +
-                    `Entré correctamente a:\n${metadata.subject}`
-            },
-            { quoted: m }
-        )
+        // Confirmación
+        await sock.sendMessage(from, { react: { text: '✅', key: m.key } })
+        await sock.sendMessage(from, {
+            text: `\`✅ GRUPO UNIDO\`\nEntré correctamente a:\n${metadata.subject}`
+        }, { quoted: m })
 
     } catch (e) {
         console.log('ERROR JOIN:', e)
-
+        await sock.sendMessage(from, { react: { text: '❌', key: m.key } })
         await sock.sendMessage(from, {
-            react: { text: '❌', key: m.key }
-        })
-
-        await sock.sendMessage(
-            from,
-            {
-                text:
-                    `\`❌ No pude entrar al grupo\`\n` +
-                    `${e.message || e}`
-            },
-            { quoted: m }
-        )
+            text: `\`❌ No pude entrar al grupo\`\n${e.message || e}`
+        }, { quoted: m })
     }
 }
 
