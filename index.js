@@ -156,14 +156,21 @@ async function runCommand(sock, msg, comando, args) {
   if (from.endsWith('@g.us') && modoAdminActivo(from)) {
     const admin = await isAdmin(sock, from, usuario)
     if (!admin) return
-}
+  }
 
   const cmd = commands.get(comando.toLowerCase())
   if (!cmd) return
+
   try {
-    cmd.run(sock, msg, args, { isAdmin, isBotAdmin, limpiarJid: cache.limpiarJid })
+    cmd.run(sock, msg, args, {
+      isAdmin,
+      isBotAdmin,
+      limpiarJid: cache.limpiarJid
+    })
   } catch (err) {
-    console.log(chalk.redBright(`⚠️ Error al ejecutar ${comando}: ${err.message}`))
+    console.log(
+      chalk.redBright(`⚠️ Error al ejecutar ${comando}: ${err.message}`)
+    )
   }
 }
 
