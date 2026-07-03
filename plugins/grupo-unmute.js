@@ -17,11 +17,19 @@ function guardarDB(db) {
     fs.writeFileSync(ruta, JSON.stringify(db, null, 2))
 }
 
+function limpiarJid(jid = '') {
+    return String(jid)
+        .replace(/:\d+@/, '@')
+        .trim()
+}
+
 let handler = {}
 
 handler.run = async (sock, m) => {
     const from = m.key.remoteJid
-    const sender = m.key.participant || m.key.remoteJid
+    const sender = limpiarJid(
+        m.key.participant || m.key.remoteJid
+    )
 
     if (!from.endsWith('@g.us')) {
         await sock.sendMessage(from, {
@@ -45,7 +53,8 @@ handler.run = async (sock, m) => {
     const participantes = metadata.participants || []
 
     const adminInfo = participantes.find(
-        p => p.id === sender || p.jid === sender
+        p =>
+            limpiarJid(p.id || p.jid) === sender
     )
 
     const isAdmin =
@@ -76,11 +85,17 @@ handler.run = async (sock, m) => {
         }, { quoted: m })
     }
 
+    target = limpiarJid(target)
+
     const db = leerDB()
 
     if (!db[from]) db[from] = []
 
-    if (!db[from].includes(target)) {
+    const existe = db[from].some(
+        x => limpiarJid(x) === target
+    )
+
+    if (!existe) {
         await sock.sendMessage(from, {
             react: { text: '⚠️', key: m.key }
         })
@@ -90,8 +105,14 @@ handler.run = async (sock, m) => {
         }, { quoted: m })
     }
 
-    db[from] = db[from].filter(x => x !== target)
+    db[from] = db[from].filter(
+        x => limpiarJid(x) !== target
+    )
+
     guardarDB(db)
+
+    // quitar cache inmediata
+    global.silenciadosCache?.delete(target)
 
     await sock.sendMessage(from, {
         react: { text: '🔊', key: m.key }
