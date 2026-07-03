@@ -119,6 +119,11 @@ handler.run = async (sock, m) => {
     db[from].push(target)
     guardarDB(db)
 
+    // ✅ AGREGAR A LA LISTA RÁPIDA EN MEMORIA AL INSTANTE
+    if (global.silenciadosCache) {
+        global.silenciadosCache.add(target)
+    }
+
     const numero = target.split('@')[0]
     const adminNum = sender.split('@')[0]
 
