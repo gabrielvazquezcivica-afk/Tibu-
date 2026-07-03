@@ -237,6 +237,14 @@ async function startBot() {
       }
     })
 
+sock.ev.on('group-participants.update', async update => {
+  try {
+    await welcomeHandler(sock, update)
+  } catch (e) {
+    console.log('WELCOME EVENT ERROR:', e.message)
+  }
+})
+
     // 📩 MENSAJES
 sock.ev.on('messages.upsert', async ({ messages, type }) => {
   if (type !== 'notify') return
@@ -247,14 +255,6 @@ sock.ev.on('messages.upsert', async ({ messages, type }) => {
     const remitente = cache.limpiarJid(
       m.key.participant || m.key.remoteJid
     )
-
-    sock.ev.on('group-participants.update', async update => {
-  try {
-    await welcomeHandler(sock, update)
-  } catch (e) {
-    console.log('WELCOME EVENT ERROR:', e.message)
-  }
-})
 
     const muted = await muteWatcher(sock, m)
     if (muted) continue
