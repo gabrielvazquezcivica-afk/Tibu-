@@ -6,7 +6,6 @@ const ruta = path.join(process.cwd(), 'database', 'welcome.json')
 const rutaWelcome = path.join(process.cwd(), 'database', 'setwelcome.json')
 const rutaBye = path.join(process.cwd(), 'database', 'setbye.json')
 
-
 const welcomeAudio = 'https://files.catbox.moe/9nyxfb.mp3'
 const byeAudio = 'https://files.catbox.moe/swqi7e.mp3'
 
@@ -125,14 +124,21 @@ export async function welcomeHandler(sock, update) {
     const users = update.participants || []
 
     for (const user of users) {
-        let image = BOT_IMAGE
+        let image = null
 
         try {
             image = await sock.profilePictureUrl(user, 'image')
         } catch {
             try {
                 image = await sock.profilePictureUrl(id, 'image')
-            } catch {}
+            } catch {
+                try {
+                    const botJid = sock.user.id.split(':')[0] + '@s.whatsapp.net'
+                    image = await sock.profilePictureUrl(botJid, 'image')
+                } catch {
+                    image = null
+                }
+            }
         }
 
         if (update.action === 'add') {
@@ -148,21 +154,30 @@ export async function welcomeHandler(sock, update) {
                 .replace(/@group/g, groupName)
                 .replace(/@members/g, members)
 
-            await sock.sendMessage(id, {
-                image: { url: image },
-                caption: text,
-                mentions: [user]
-            })
+            if (image) {
+                await sock.sendMessage(id, {
+                    image: { url: image },
+                    caption: text,
+                    mentions: [user]
+                })
+            } else {
+                await sock.sendMessage(id, {
+                    text,
+                    mentions: [user]
+                })
+            }
 
-               try {
-    await sock.sendMessage(id, {
-        audio: { url: welcomeAudio },
-        mimetype: 'audio/mpeg',
-        ptt: false
-    })
-} catch (e) {
-    console.log('WELCOME AUDIO ERROR:', e)
-}
+            try {
+                const audio = await fetch(welcomeAudio).then(res => res.arrayBuffer())
+
+                await sock.sendMessage(id, {
+                    audio: Buffer.from(audio),
+                    mimetype: 'audio/mp4',
+                    ptt: true
+                })
+            } catch (e) {
+                console.log('WELCOME AUDIO ERROR:', e)
+            }
         }
 
         if (update.action === 'remove') {
@@ -178,22 +193,30 @@ export async function welcomeHandler(sock, update) {
                 .replace(/@group/g, groupName)
                 .replace(/@members/g, members)
 
-            await sock.sendMessage(id, {
-                image: { url: image },
-                caption: text,
-                mentions: [user]
-            })
-    
-              try {
-    await sock.sendMessage(id, {
-        audio: { url: byeAudio },
-        mimetype: 'audio/mpeg',
-        ptt: false
-    })
-} catch (e) {
-    console.log('BYE AUDIO ERROR:', e)
-}
+            if (image) {
+                await sock.sendMessage(id, {
+                    image: { url: image },
+                    caption: text,
+                    mentions: [user]
+                })
+            } else {
+                await sock.sendMessage(id, {
+                    text,
+                    mentions: [user]
+                })
+            }
 
+            try {
+                const audio = await fetch(byeAudio).then(res => res.arrayBuffer())
+
+                await sock.sendMessage(id, {
+                    audio: Buffer.from(audio),
+                    mimetype: 'audio/mp4',
+                    ptt: true
+                })
+            } catch (e) {
+                console.log('BYE AUDIO ERROR:', e)
+            }
         }
     }
 }
