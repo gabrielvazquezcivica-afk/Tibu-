@@ -6,7 +6,6 @@ const ruta = path.join(process.cwd(), 'database', 'welcome.json')
 const rutaWelcome = path.join(process.cwd(), 'database', 'setwelcome.json')
 const rutaBye = path.join(process.cwd(), 'database', 'setbye.json')
 
-const BOT_IMAGE = 'https://i.postimg.cc/VsSqN5RG/19d8fec1698683dde758218220caa31e.jpg'
 
 const welcomeAudio = 'https://files.catbox.moe/9nyxfb.mp3'
 const byeAudio = 'https://files.catbox.moe/swqi7e.mp3'
