@@ -24,23 +24,34 @@ handler.run = async (sock, m, args) => {
   const sender = m.key.participant || m.key.remoteJid
 
   if (!from.endsWith('@g.us')) {
-    return sock.sendMessage(from, { text: '`🌊 Solo en grupos`' }, { quoted: m })
+    return sock.sendMessage(from, {
+      text: '`🌊 Solo funciona en grupos`'
+    }, { quoted: m })
   }
 
   const metadata = await sock.groupMetadata(from)
-  const admin = metadata.participants.find(p => p.id === sender || p.jid === sender)
+  const admin = metadata.participants.find(
+    p => p.id === sender || p.jid === sender
+  )
 
   if (!admin?.admin) {
-    return sock.sendMessage(from, { text: '`🚫 Solo admins`' }, { quoted: m })
+    return sock.sendMessage(from, {
+      text: '`🚫 Solo admins pueden usarlo`'
+    }, { quoted: m })
   }
 
   const texto = args.join(' ')
+
   if (!texto) {
     return sock.sendMessage(from, {
-      text: 'Variables:
-            > @user
-            > @group
-            > @members'
+      text:
+`🌊 \`Usa\`
+\`.setwelcome <texto>\`
+
+⚓ Variables:
+> @user
+> @members
+> @group`
     }, { quoted: m })
   }
 
@@ -49,7 +60,12 @@ handler.run = async (sock, m, args) => {
   guardarDB(db)
 
   await sock.sendMessage(from, {
-    text: `⚓ Welcome configurado\n\n${texto}\n\n> ${config.BOT_NAME}`
+    text:
+`🌊 𝐖𝐄𝐋𝐂𝐎𝐌𝐄 𝐂𝐎𝐍𝐅𝐈𝐆𝐔𝐑𝐀𝐃𝐎
+
+${texto}
+
+> ${config.BOT_NAME}`
   }, { quoted: m })
 }
 
