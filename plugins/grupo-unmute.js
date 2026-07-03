@@ -1,107 +1,49 @@
 import config from '../config.js'
-import fs from 'fs'
-import path from 'path'
-
-const ruta = path.join(process.cwd(), 'database', 'muteados.json')
-
-function leerDB() {
-    try {
-        return JSON.parse(fs.readFileSync(ruta, 'utf8'))
-    } catch {
-        return {}
-    }
-}
-
-function guardarDB(db) {
-    fs.mkdirSync(path.dirname(ruta), { recursive: true })
-    fs.writeFileSync(ruta, JSON.stringify(db, null, 2))
-}
-
-function limpiarJid(jid = '') {
-    return String(jid)
-        .replace(/:\d+@/, '@')
-        .trim()
-}
+import { limpiarJid, leerDB, guardarDB } from '../lib/muteWatcher.js'
 
 let handler = {}
 
 handler.run = async (sock, m, args, { isAdmin }) => {
-    const from = m.key.remoteJid
-    const sender = limpiarJid(
-        m.key.participant || m.key.remoteJid
-    )
+  const from = m.key.remoteJid
+  const sender = limpiarJid(m.key.participant || m.key.remoteJid)
 
-    if (!from.endsWith('@g.us')) {
-        return sock.sendMessage(from, {
-            text: '`🌊 Solo funciona en grupos`'
-        }, { quoted: m })
-    }
+  if (!from.endsWith('@g.us')) {
+    return sock.sendMessage(from, { text: '`🌊 Solo funciona en grupos`' }, { quoted: m })
+  }
 
-    if (!await isAdmin(sock, from, sender)) {
-        await sock.sendMessage(from, {
-            react: { text: '🚫', key: m.key }
-        })
-        return
-    }
+  if (!await isAdmin(sock, from, sender)) {
+    await sock.sendMessage(from, { react: { text: '🚫', key: m.key } })
+    return
+  }
 
-    let target = null
+  let target = m.message?.extendedTextMessage?.contextInfo?.participant
+              || m.message?.extendedTextMessage?.contextInfo?.mentionedJid?.[0]
 
-    const quoted =
-        m.message?.extendedTextMessage?.contextInfo?.participant
+  if (!target) {
+    return sock.sendMessage(from, { text: '`❌ Responde o menciona un usuario`' }, { quoted: m })
+  }
 
-    const mentioned =
-        m.message?.extendedTextMessage?.contextInfo?.mentionedJid
+  target = limpiarJid(target)
 
-    if (quoted) target = quoted
-    if (!target && mentioned?.length) target = mentioned[0]
+  const db = leerDB()
+  if (!db[from]) db[from] = []
 
-    if (!target) {
-        return sock.sendMessage(from, {
-            text: '`❌ Responde o menciona un usuario`'
-        }, { quoted: m })
-    }
+  if (!db[from].includes(target)) {
+    await sock.sendMessage(from, { react: { text: '⚠️', key: m.key } })
+    return sock.sendMessage(from, { text: '`⚠️ Ese usuario no estaba muteado`' }, { quoted: m })
+  }
 
-    target = limpiarJid(target)
+  db[from] = db[from].filter(u => limpiarJid(u) !== target)
+  guardarDB(db)
 
-    const db = leerDB()
+  // ✅ QUITAR DE LISTA INMEDIATAMENTE
+  global.silenciadosCache.delete(target)
 
-    if (!db[from]) db[from] = []
-
-    if (!db[from].includes(target)) {
-        await sock.sendMessage(from, {
-            react: { text: '⚠️', key: m.key }
-        })
-        return sock.sendMessage(from, {
-            text: '`⚠️ Ese usuario no estaba muteado`'
-        }, { quoted: m })
-    }
-
-    // Quitar de la base de datos
-    db[from] = db[from].filter(
-        user => limpiarJid(user) !== target
-    )
-    guardarDB(db)
-
-    // ✅ QUITAR DE LA LISTA RÁPIDA EN MEMORIA
-    if (global.silenciadosCache) {
-        global.silenciadosCache.delete(target)
-    }
-
-    const numero = target.split('@')[0]
-    const adminNum = sender.split('@')[0]
-
-    await sock.sendMessage(from, {
-        react: { text: '🔊', key: m.key }
-    })
-
-    await sock.sendMessage(from, {
-        text:
-            `🌊 𝐔𝐒𝐔𝐀𝐑𝐈𝐎 𝐃𝐄𝐒𝐒𝐈𝐋𝐄𝐍𝐂𝐈𝐀𝐃𝐎 🔊\n\n` +
-            `👤 Usuario: @${numero}\n` +
-            `🦈 Activado por: @${adminNum}\n\n` +
-            `> ${config.BOT_NAME}`,
-        mentions: [target, sender]
-    }, { quoted: m })
+  await sock.sendMessage(from, { react: { text: '🔊', key: m.key } })
+  await sock.sendMessage(from, {
+    text: `🌊 𝐔𝐒𝐔𝐀𝐑𝐈𝐎 𝐃𝐄𝐒𝐒𝐈𝐋𝐄𝐍𝐂𝐈𝐀𝐃𝐎 🔊\n\n👤 Usuario: @${target.split('@')[0]}\n🦈 Activado por: @${sender.split('@')[0]}\n\n> ${config.BOT_NAME}`,
+    mentions: [target, sender]
+  }, { quoted: m })
 }
 
 handler.command = ['unmute']
