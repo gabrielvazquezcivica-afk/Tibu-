@@ -63,19 +63,27 @@ function guardarContadores(datos) {
 
 // ─── VERIFICACIONES ───
 async function isAdmin(sock, groupId, userJid) {
-  const clave = `${groupId}-${cache.limpiarJid(userJid)}`
-  if (cache.admins.has(clave)) return cache.admins.get(clave)
   try {
     let metadata = cache.groupMeta.get(groupId)
+
     if (!metadata) {
       metadata = await sock.groupMetadata(groupId)
       cache.groupMeta.set(groupId, metadata)
     }
+
     const limpioUser = cache.limpiarJid(userJid)
-    const esAdmin = metadata.participants.some(p => cache.limpiarJid(p.id) === limpioUser && p.admin)
-    cache.admins.set(clave, esAdmin)
-    return esAdmin
-  } catch {
+
+    const participante = metadata.participants.find(p => {
+      const jid = cache.limpiarJid(p.id || p.jid)
+      return jid === limpioUser
+    })
+
+    return (
+      participante?.admin === 'admin' ||
+      participante?.admin === 'superadmin'
+    )
+  } catch (e) {
+    console.log('isAdmin error:', e)
     return false
   }
 }
