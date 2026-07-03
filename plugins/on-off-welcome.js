@@ -154,6 +154,16 @@ export async function welcomeHandler(sock, update) {
                 caption: text,
                 mentions: [user]
             })
+
+               try {
+    await sock.sendMessage(id, {
+        audio: { url: welcomeAudio },
+        mimetype: 'audio/mpeg',
+        ptt: false
+    })
+} catch (e) {
+    console.log('WELCOME AUDIO ERROR:', e)
+}
         }
 
         if (update.action === 'remove') {
@@ -174,6 +184,17 @@ export async function welcomeHandler(sock, update) {
                 caption: text,
                 mentions: [user]
             })
+    
+              try {
+    await sock.sendMessage(id, {
+        audio: { url: byeAudio },
+        mimetype: 'audio/mpeg',
+        ptt: false
+    })
+} catch (e) {
+    console.log('BYE AUDIO ERROR:', e)
+}
+
         }
     }
 }
