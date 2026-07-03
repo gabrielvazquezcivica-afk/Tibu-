@@ -218,19 +218,11 @@ async function startBot() {
 
         const remitente = cache.limpiarJid(m.key.participant || m.key.remoteJid)
 
-        // ✅ BORRADO INMEDIATO SI ESTÁ EN LISTA
-        if (global.silenciadosCache?.has(remitente)) {
-          try { await sock.deleteMessage(m.key.remoteJid, { id: m.key.id, fromMe: false }) } catch {}
-          continue
-        }
+       for (const m of messages) {
+    if (!m || m.key.fromMe || !m.message) continue
 
-        // ✅ VERIFICACIÓN COMPLETA
-        const muted = await muteWatcher(sock, m)
-        if (muted) {
-          global.silenciadosCache?.add(remitente)
-          try { await sock.deleteMessage(m.key.remoteJid, { id: m.key.id, fromMe: false }) } catch {}
-          continue
-        }
+    const muted = await muteWatcher(sock, m)
+    if (muted) continue
 
         const texto = m.message.conversation || m.message.extendedTextMessage?.text || ''
 
