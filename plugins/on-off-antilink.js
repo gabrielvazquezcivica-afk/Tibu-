@@ -135,7 +135,7 @@ handler.run = async (sock, m, args) => {
 
 handler.command = ['antilink']
 handler.help = ['antilink on/off']
-handler.tags = ['grupo']
+handler.tags = ['on-off']
 handler.menu = true
 
 export default handler
