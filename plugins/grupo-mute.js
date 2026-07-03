@@ -1,148 +1,57 @@
 import config from '../config.js'
-import fs from 'fs'
-import path from 'path'
-
-const ruta = path.join(process.cwd(), 'database', 'muteados.json')
-
-function leerDB() {
-    try {
-        return JSON.parse(fs.readFileSync(ruta, 'utf8'))
-    } catch {
-        return {}
-    }
-}
-
-function guardarDB(db) {
-    fs.mkdirSync(path.dirname(ruta), { recursive: true })
-    fs.writeFileSync(
-        ruta,
-        JSON.stringify(db, null, 2),
-        'utf8'
-    )
-}
-
-function limpiarJid(jid = '') {
-    return String(jid)
-        .replace(/:\d+@/, '@')
-        .trim()
-}
+import { limpiarJid, leerDB, guardarDB } from '../lib/muteWatcher.js'
 
 let handler = {}
 
 handler.run = async (sock, m) => {
-    const from = m.key.remoteJid
-    const sender = limpiarJid(
-        m.key.participant || m.key.remoteJid
-    )
+  const from = m.key.remoteJid
+  const sender = limpiarJid(m.key.participant || m.key.remoteJid)
 
-    if (!from.endsWith('@g.us')) {
-        return sock.sendMessage(
-            from,
-            { text: '`🌊 Solo funciona en grupos`' },
-            { quoted: m }
-        )
-    }
+  if (!from.endsWith('@g.us')) {
+    return sock.sendMessage(from, { text: '`🌊 Solo funciona en grupos`' }, { quoted: m })
+  }
 
-    let metadata
-    try {
-        metadata = await sock.groupMetadata(from)
-    } catch {
-        return sock.sendMessage(
-            from,
-            { text: '`❌ No pude leer el grupo`' },
-            { quoted: m }
-        )
-    }
+  const metadata = await sock.groupMetadata(from).catch(() => null)
+  if (!metadata) return sock.sendMessage(from, { text: '`❌ No pude leer el grupo`' }, { quoted: m })
 
-    const participantes = metadata.participants || []
+  const adminInfo = metadata.participants.find(p => limpiarJid(p.id) === sender)
+  const isAdmin = adminInfo?.admin === 'admin' || adminInfo?.admin === 'superadmin'
+  if (!isAdmin) {
+    await sock.sendMessage(from, { react: { text: '🚫', key: m.key } })
+    return
+  }
 
-    const adminInfo = participantes.find(
-        p =>
-            limpiarJid(p.id) === sender ||
-            limpiarJid(p.jid) === sender
-    )
+  let target = m.message?.extendedTextMessage?.contextInfo?.participant
+              || m.message?.extendedTextMessage?.contextInfo?.mentionedJid?.[0]
 
-    const isAdmin =
-        adminInfo?.admin === 'admin' ||
-        adminInfo?.admin === 'superadmin'
+  if (!target) {
+    return sock.sendMessage(from, { text: '`❌ Responde o menciona un usuario`' }, { quoted: m })
+  }
 
-    if (!isAdmin) {
-        await sock.sendMessage(from, {
-            react: { text: '🚫', key: m.key }
-        })
-        return
-    }
+  target = limpiarJid(target)
 
-    let target = null
+  const db = leerDB()
+  if (!db[from]) db[from] = []
 
-    const quoted =
-        m.message?.extendedTextMessage?.contextInfo?.participant
+  if (db[from].includes(target)) {
+    await sock.sendMessage(from, { react: { text: '⚠️', key: m.key } })
+    return sock.sendMessage(from, {
+      text: `🌊 𝐘𝐀 𝐄𝐒𝐓𝐀 𝐒𝐈𝐋𝐄𝐍𝐂𝐈𝐀𝐃𝐎 ⚠️\n\n👤 Usuario: @${target.split('@')[0]}\n\n> ${config.BOT_NAME}`,
+      mentions: [target]
+    }, { quoted: m })
+  }
 
-    const mentioned =
-        m.message?.extendedTextMessage?.contextInfo?.mentionedJid
+  db[from].push(target)
+  guardarDB(db)
 
-    if (quoted) target = quoted
-    if (!target && mentioned?.length) target = mentioned[0]
+  // ✅ AGREGAR A LISTA INMEDIATAMENTE
+  global.silenciadosCache.add(target)
 
-    if (!target) {
-        return sock.sendMessage(
-            from,
-            { text: '`❌ Responde o menciona un usuario`' },
-            { quoted: m }
-        )
-    }
-
-    target = limpiarJid(target)
-
-    const db = leerDB()
-
-    if (!db[from]) db[from] = []
-
-    if (db[from].includes(target)) {
-        await sock.sendMessage(from, {
-            react: { text: '⚠️', key: m.key }
-        })
-
-        return sock.sendMessage(
-            from,
-            {
-                text:
-                    `🌊 𝐘𝐀 𝐄𝐒𝐓𝐀 𝐒𝐈𝐋𝐄𝐍𝐂𝐈𝐀𝐃𝐎 ⚠️\n\n` +
-                    `👤 Usuario: @${target.split('@')[0]}\n\n` +
-                    `> ${config.BOT_NAME}`,
-                mentions: [target]
-            },
-            { quoted: m }
-        )
-    }
-
-    db[from].push(target)
-    guardarDB(db)
-
-    // ✅ AGREGAR A LA LISTA RÁPIDA EN MEMORIA AL INSTANTE
-    if (global.silenciadosCache) {
-        global.silenciadosCache.add(target)
-    }
-
-    const numero = target.split('@')[0]
-    const adminNum = sender.split('@')[0]
-
-    await sock.sendMessage(from, {
-        react: { text: '🔇', key: m.key }
-    })
-
-    await sock.sendMessage(
-        from,
-        {
-            text:
-                `🌊 𝐔𝐒𝐔𝐀𝐑𝐈𝐎 𝐒𝐈𝐋𝐄𝐍𝐂𝐈𝐀𝐃𝐎 🔇\n\n` +
-                `👤 Usuario: @${numero}\n` +
-                `🦈 Silenciado por: @${adminNum}\n\n` +
-                `> ${config.BOT_NAME}`,
-            mentions: [target, sender]
-        },
-        { quoted: m }
-    )
+  await sock.sendMessage(from, { react: { text: '🔇', key: m.key } })
+  await sock.sendMessage(from, {
+    text: `🌊 𝐔𝐒𝐔𝐀𝐑𝐈𝐎 𝐒𝐈𝐋𝐄𝐍𝐂𝐈𝐀𝐃𝐎 🔇\n\n👤 Usuario: @${target.split('@')[0]}\n🦈 Silenciado por: @${sender.split('@')[0]}\n\n> ${config.BOT_NAME}`,
+    mentions: [target, sender]
+  }, { quoted: m })
 }
 
 handler.command = ['mute']
