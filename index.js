@@ -6,6 +6,7 @@ import fetch from 'node-fetch'
 import chalk from 'chalk'
 import config from './config.js'
 import { muteWatcher } from './lib/muteWatcher.js'
+import { antiLink } from './lib/antiLink.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -222,6 +223,9 @@ sock.ev.on('messages.upsert', async ({ messages, type }) => {
 
     const muted = await muteWatcher(sock, m)
     if (muted) continue
+
+    const bloqueado = await antiLink(sock, m)
+if (bloqueado) continue
 
     const texto =
       m.message.conversation ||
