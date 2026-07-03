@@ -11,9 +11,7 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 let commands = new Map()
 
-// ✅ LISTA GLOBAL DE SILENCIADOS (debe existir desde el principio)
-global.silenciadosCache = new Set()
-
+// ─── CACHÉ ───
 const cache = {
   admins: new Map(),
   groupMeta: new Map(),
@@ -211,7 +209,7 @@ async function startBot() {
       }
     })
 
-    // 📩 MENSAJES: PRIMERO BORRAR SI ESTÁ SILENCIADO
+    // 📩 MENSAJES: PROCESO RÁPIDO + MUTE ANTES DE PREFIJO
     sock.ev.on('messages.upsert', async ({ messages, type }) => {
       if (type !== 'notify') return
 
@@ -221,15 +219,15 @@ async function startBot() {
         const remitente = cache.limpiarJid(m.key.participant || m.key.remoteJid)
 
         // ✅ BORRADO INMEDIATO SI ESTÁ EN LISTA
-        if (global.silenciadosCache.has(remitente)) {
+        if (global.silenciadosCache?.has(remitente)) {
           try { await sock.deleteMessage(m.key.remoteJid, { id: m.key.id, fromMe: false }) } catch {}
           continue
         }
 
-        // ✅ LUEGO VERIFICACIÓN COMPLETA
+        // ✅ VERIFICACIÓN COMPLETA
         const muted = await muteWatcher(sock, m)
         if (muted) {
-          global.silenciadosCache.add(remitente)
+          global.silenciadosCache?.add(remitente)
           try { await sock.deleteMessage(m.key.remoteJid, { id: m.key.id, fromMe: false }) } catch {}
           continue
         }
