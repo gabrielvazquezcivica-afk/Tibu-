@@ -29,8 +29,10 @@ handler.run = async (sock, m, args) => {
         }, { quoted: m })
     }
 
-    const metadata = await sock.groupMetadata(from).catch(() => null)
-    if (!metadata) {
+    let metadata
+    try {
+        metadata = await sock.groupMetadata(from)
+    } catch {
         return sock.sendMessage(from, {
             text: '`❌ No pude leer el grupo`'
         }, { quoted: m })
@@ -38,13 +40,13 @@ handler.run = async (sock, m, args) => {
 
     const participantes = metadata.participants || []
 
-    const userInfo = participantes.find(
+    const adminInfo = participantes.find(
         p => p.id === sender || p.jid === sender
     )
 
     const isAdmin =
-        userInfo?.admin === 'admin' ||
-        userInfo?.admin === 'superadmin'
+        adminInfo?.admin === 'admin' ||
+        adminInfo?.admin === 'superadmin'
 
     if (!isAdmin) {
         await sock.sendMessage(from, {
@@ -52,21 +54,28 @@ handler.run = async (sock, m, args) => {
         })
 
         return sock.sendMessage(from, {
-            text: '`🚫 Solo capitanes pueden usarlo`'
+            text: '`🚫 Solo admins pueden usarlo`'
         }, { quoted: m })
     }
 
+    const accion = args?.[0]?.toLowerCase()
     const db = leerDB()
 
-    if (!args[0]) {
-        return sock.sendMessage(from, {
-            text: '`Uso: .antilink on / off`'
-        }, { quoted: m })
-    }
+    if (accion === 'on') {
+        if (db[from]) {
+            await sock.sendMessage(from, {
+                react: { text: '⚠️', key: m.key }
+            })
 
-    const opcion = args[0].toLowerCase()
+            return sock.sendMessage(from, {
+                text:
+                    `⚠️ 𝐀𝐍𝐓𝐈𝐋𝐈𝐍𝐊 𝐘𝐀 𝐄𝐒𝐓Á 𝐀𝐂𝐓𝐈𝐕𝐎\n\n` +
+                    `🦈 Capitán: @${sender.split('@')[0]}\n\n` +
+                    `> ${config.BOT_NAME}`,
+                mentions: [sender]
+            }, { quoted: m })
+        }
 
-    if (opcion === 'on') {
         db[from] = true
         guardarDB(db)
 
@@ -75,27 +84,58 @@ handler.run = async (sock, m, args) => {
         })
 
         return sock.sendMessage(from, {
-            text: `🛡️ 𝐀𝐍𝐓𝐈𝐋𝐈𝐍𝐊 𝐀𝐂𝐓𝐈𝐕𝐀𝐃𝐎\n\n> ${config.BOT_NAME}`
+            text:
+                `🛡️ 𝐀𝐍𝐓𝐈𝐋𝐈𝐍𝐊 𝐀𝐂𝐓𝐈𝐕𝐀𝐃𝐎\n\n` +
+                `🚫 Se borrarán todos los enlaces\n` +
+                `🦈 Capitán: @${sender.split('@')[0]}\n\n` +
+                `> ${config.BOT_NAME}`,
+            mentions: [sender]
         }, { quoted: m })
     }
 
-    if (opcion === 'off') {
+    if (accion === 'off') {
+        if (!db[from]) {
+            await sock.sendMessage(from, {
+                react: { text: '⚠️', key: m.key }
+            })
+
+            return sock.sendMessage(from, {
+                text:
+                    `⚠️ 𝐀𝐍𝐓𝐈𝐋𝐈𝐍𝐊 𝐘𝐀 𝐄𝐒𝐓Á 𝐀𝐏𝐀𝐆𝐀𝐃𝐎\n\n` +
+                    `🦈 Capitán: @${sender.split('@')[0]}\n\n` +
+                    `> ${config.BOT_NAME}`,
+                mentions: [sender]
+            }, { quoted: m })
+        }
+
         delete db[from]
         guardarDB(db)
 
         await sock.sendMessage(from, {
-            react: { text: '❌', key: m.key }
+            react: { text: '🔓', key: m.key }
         })
 
         return sock.sendMessage(from, {
-            text: `❌ 𝐀𝐍𝐓𝐈𝐋𝐈𝐍𝐊 𝐃𝐄𝐒𝐀𝐂𝐓𝐈𝐕𝐀𝐃𝐎\n\n> ${config.BOT_NAME}`
+            text:
+                `🔓 𝐀𝐍𝐓𝐈𝐋𝐈𝐍𝐊 𝐃𝐄𝐒𝐀𝐂𝐓𝐈𝐕𝐀𝐃𝐎\n\n` +
+                `🌊 Los enlaces vuelven a permitirse\n` +
+                `🦈 Capitán: @${sender.split('@')[0]}\n\n` +
+                `> ${config.BOT_NAME}`,
+            mentions: [sender]
         }, { quoted: m })
     }
+
+    return sock.sendMessage(from, {
+        text:
+            '`Usa:`\n' +
+            '• .antilink on\n' +
+            '• .antilink off'
+    }, { quoted: m })
 }
 
 handler.command = ['antilink']
 handler.help = ['antilink on/off']
-handler.tags = ['on-off']
+handler.tags = ['grupo']
 handler.menu = true
 
 export default handler
