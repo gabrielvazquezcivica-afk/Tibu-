@@ -162,10 +162,16 @@ async function runCommand(sock, msg, comando, args) {
 
   if (estaBaneado(usuario)) return
 
-  if (from.endsWith('@g.us') && modoAdminActivo(from)) {
-    const admin = await isAdmin(sock, from, usuario)
-    if (!admin) return
-  }
+  const cmd = commands.get(comando.toLowerCase())
+if (!cmd) return
+
+if (from.endsWith('@g.us') && modoAdminActivo(from)) {
+  const permitido =
+    cmd.tags?.includes('owner') ||
+    cmd.tags?.includes('grupo')
+
+  if (!permitido) return
+}
 
   const cmd = commands.get(comando.toLowerCase())
   if (!cmd) return
