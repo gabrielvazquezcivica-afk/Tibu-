@@ -44,13 +44,16 @@ handler.run = async (sock, m, args) => {
 
     const participantes = metadata.participants || []
 
-    const adminInfo = participantes.find(
-        p => p.id === sender || p.jid === sender
-    )
+const limpioSender = sender.split(':')[0]
 
-    const isAdmin =
-        adminInfo?.admin === 'admin' ||
-        adminInfo?.admin === 'superadmin'
+const adminInfo = participantes.find(p => {
+    const jid = (p.id || p.jid || '').split(':')[0]
+    return jid === limpioSender
+})
+
+const isAdmin =
+    adminInfo?.admin === 'admin' ||
+    adminInfo?.admin === 'superadmin'
 
     if (!isAdmin) {
         await sock.sendMessage(from, {
