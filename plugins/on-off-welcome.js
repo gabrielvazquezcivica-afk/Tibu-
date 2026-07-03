@@ -101,7 +101,7 @@ handler.run = async (sock, m, args) => {
 
 handler.command = ['welcome']
 handler.help = ['welcome']
-handler.tags = ['grupo']
+handler.tags = ['on-off']
 handler.menu = true
 
 export default handler
