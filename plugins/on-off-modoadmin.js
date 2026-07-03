@@ -24,13 +24,19 @@ handler.run = async (sock, m, args) => {
     const sender = m.key.participant || m.key.remoteJid
 
     if (!from.endsWith('@g.us')) {
+        await sock.sendMessage(from, {
+            react: { text: '🌊', key: m.key }
+        })
+
         return sock.sendMessage(from, {
             text: '`🌊 Solo funciona en grupos`'
         }, { quoted: m })
     }
 
-    const metadata = await sock.groupMetadata(from).catch(() => null)
-    if (!metadata) {
+    let metadata
+    try {
+        metadata = await sock.groupMetadata(from)
+    } catch {
         return sock.sendMessage(from, {
             text: '`❌ No pude leer el grupo`'
         }, { quoted: m })
@@ -53,16 +59,32 @@ handler.run = async (sock, m, args) => {
         return
     }
 
-    const accion = args?.[0]?.toLowerCase()
-    const db = leerDB()
+    const opcion = args?.[0]?.toLowerCase()
 
-    if (accion === 'on') {
-        if (db[from]) {
+    if (!['on', 'off'].includes(opcion)) {
+        await sock.sendMessage(from, {
+            react: { text: '❌', key: m.key }
+        })
+
+        return sock.sendMessage(from, {
+            text:
+                '`❌ Usa:`\n' +
+                '`.modoadmin on`\n' +
+                '`.modoadmin off`'
+        }, { quoted: m })
+    }
+
+    const db = leerDB()
+    const activo = !!db[from]
+
+    if (opcion === 'on') {
+        if (activo) {
             await sock.sendMessage(from, {
                 react: { text: '⚠️', key: m.key }
             })
+
             return sock.sendMessage(from, {
-                text: '`⚠️ Modo admin ya está activo`'
+                text: '`⚠️ El modo admin ya está activado`'
             }, { quoted: m })
         }
 
@@ -75,39 +97,34 @@ handler.run = async (sock, m, args) => {
 
         return sock.sendMessage(from, {
             text:
-                `🔒 𝐌𝐎𝐃𝐎 𝐀𝐃𝐌𝐈𝐍 𝐀𝐂𝐓𝐈𝐕𝐀𝐃𝐎\n\n` +
-                `Solo admins podrán usar comandos\n\n` +
+                `🌊 𝐌𝐎𝐃𝐎 𝐀𝐃𝐌𝐈𝐍 𝐀𝐂𝐓𝐈𝐕𝐀𝐃𝐎 🔒\n\n` +
+                `🦈 Solo capitanes pueden usar comandos\n\n` +
                 `> ${config.BOT_NAME}`
         }, { quoted: m })
     }
 
-    if (accion === 'off') {
-        if (!db[from]) {
-            await sock.sendMessage(from, {
-                react: { text: '⚠️', key: m.key }
-            })
-            return sock.sendMessage(from, {
-                text: '`⚠️ Modo admin ya está apagado`'
-            }, { quoted: m })
-        }
-
-        delete db[from]
-        guardarDB(db)
-
+    if (!activo) {
         await sock.sendMessage(from, {
-            react: { text: '🔓', key: m.key }
+            react: { text: '⚠️', key: m.key }
         })
 
         return sock.sendMessage(from, {
-            text:
-                `🔓 𝐌𝐎𝐃𝐎 𝐀𝐃𝐌𝐈𝐍 𝐃𝐄𝐒𝐀𝐂𝐓𝐈𝐕𝐀𝐃𝐎\n\n` +
-                `Todos pueden usar comandos\n\n` +
-                `> ${config.BOT_NAME}`
+            text: '`⚠️ El modo admin ya está desactivado`'
         }, { quoted: m })
     }
 
-    return sock.sendMessage(from, {
-        text: '`Usa .modoadmin on / off`'
+    delete db[from]
+    guardarDB(db)
+
+    await sock.sendMessage(from, {
+        react: { text: '🔓', key: m.key }
+    })
+
+    await sock.sendMessage(from, {
+        text:
+            `🌊 𝐌𝐎𝐃𝐎 𝐀𝐃𝐌𝐈𝐍 𝐃𝐄𝐒𝐀𝐂𝐓𝐈𝐕𝐀𝐃𝐎 🔓\n\n` +
+            `🛶 Todos pueden usar comandos\n\n` +
+            `> ${config.BOT_NAME}`
     }, { quoted: m })
 }
 
