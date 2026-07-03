@@ -166,11 +166,15 @@ async function runCommand(sock, msg, comando, args) {
   if (!cmd) return
 
   if (from.endsWith('@g.us') && modoAdminActivo(from)) {
-    const permitido =
-      cmd.tags?.includes('owner') ||
-      cmd.tags?.includes('grupo')
+    const admin = await isAdmin(sock, from, usuario)
 
-    if (!permitido) return
+    if (!admin) {
+      const excluir =
+        cmd.tags?.includes('owner') ||
+        cmd.tags?.includes('grupo')
+
+      if (!excluir) return
+    }
   }
 
   try {
