@@ -11,14 +11,15 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 let commands = new Map()
 
-// ─── CACHÉ + LISTA DE SILENCIADOS EN MEMORIA ───
+// ✅ LISTA GLOBAL DE SILENCIADOS (debe existir desde el principio)
+global.silenciadosCache = new Set()
+
 const cache = {
   admins: new Map(),
   groupMeta: new Map(),
   citados: new Map(),
   contadores: null,
   baneados: null,
-  silenciados: new Set(), // ✅ Lista rápida: solo contiene JIDs silenciados
   limpiarJid: jid => jid.replace(/[:].*@/, '@').trim()
 }
 
@@ -166,9 +167,6 @@ async function startBot() {
     await loadPlugins()
     const botName = sock.user?.name || config.BOT_NAME
 
-    // ✅ EXPORTAR LISTA PARA QUE muteWatcher LA USE
-    global.silenciadosCache = cache.silenciados
-
     sock.ev.on('group-participants.update', async (update) => {
       try {
         const { id, participants, action, author } = update
@@ -213,33 +211,31 @@ async function startBot() {
       }
     })
 
-    // 📩 MENSAJES: BORRADO INSTANTÁNEO DE TODOS LOS MENSAJES DE SILENCIADOS
+    // 📩 MENSAJES: PRIMERO BORRAR SI ESTÁ SILENCIADO
     sock.ev.on('messages.upsert', async ({ messages, type }) => {
       if (type !== 'notify') return
 
       for (const m of messages) {
         if (!m || m.key.fromMe || !m.message) continue
 
-        const remitente = m.key.participant || m.key.remoteJid
+        const remitente = cache.limpiarJid(m.key.participant || m.key.remoteJid)
 
-        // ✅ PRIMERO: SI ESTÁ EN LA LISTA RÁPIDA → BORRAR DE INMEDIATO
-        if (cache.silenciados.has(remitente)) {
+        // ✅ BORRADO INMEDIATO SI ESTÁ EN LISTA
+        if (global.silenciadosCache.has(remitente)) {
           try { await sock.deleteMessage(m.key.remoteJid, { id: m.key.id, fromMe: false }) } catch {}
           continue
         }
 
-        // ✅ LUEGO: VERIFICAR CON muteWatcher Y ACTUALIZAR LISTA
+        // ✅ LUEGO VERIFICACIÓN COMPLETA
         const muted = await muteWatcher(sock, m)
         if (muted) {
-          cache.silenciados.add(remitente) // Agregar para borrar futuros mensajes al instante
+          global.silenciadosCache.add(remitente)
           try { await sock.deleteMessage(m.key.remoteJid, { id: m.key.id, fromMe: false }) } catch {}
           continue
         }
 
-        // Leer texto rápido
         const texto = m.message.conversation || m.message.extendedTextMessage?.text || ''
 
-        // SI NO ES COMANDO: solo cuenta y sigue
         if (!texto.startsWith(config.PREFIX)) {
           const from = m.key.remoteJid
           if (from.endsWith('@g.us')) {
@@ -252,7 +248,6 @@ async function startBot() {
           continue
         }
 
-        // SI ES COMANDO: procesa completo
         sock.readMessages([m.key]).catch(() => {})
 
         const bloques = texto.split(config.PREFIX).filter(b => b.trim())
