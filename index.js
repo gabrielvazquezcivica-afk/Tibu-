@@ -7,7 +7,7 @@ import chalk from 'chalk'
 import config from './config.js'
 import { muteWatcher } from './lib/muteWatcher.js'
 import { antiLink } from './lib/antilink.js'
-import { welcomeHandler } from './plugins on-off-welcome.js'
+import { welcomeHandler } from './plugins/on-off-welcome.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
