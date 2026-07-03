@@ -84,6 +84,17 @@ async function isBotAdmin(sock, groupId) {
   return isAdmin(sock, groupId, botJid)
 }
 
+const rutaModoAdmin = path.join(process.cwd(), 'database', 'modoadmin.json')
+
+function modoAdminActivo(grupo) {
+    try {
+        const db = JSON.parse(fs.readFileSync(rutaModoAdmin, 'utf8'))
+        return !!db[grupo]
+    } catch {
+        return false
+    }
+}
+
 // ─── MENSAJE CITADO ───
 const sistema = async (sock, from, titulo = `${config.BOT_NAME} 🦈`) => {
   const clave = `${from}-${titulo}`
@@ -139,6 +150,12 @@ async function loadPlugins() {
 async function runCommand(sock, msg, comando, args) {
   const usuario = msg.key.participant || msg.key.remoteJid
   if (estaBaneado(usuario)) return
+
+  if (from.endsWith('@g.us') && modoAdminActivo(from)) {
+    const admin = await isAdmin(sock, from, usuario)
+    if (!admin) return
+}
+
   const cmd = commands.get(comando.toLowerCase())
   if (!cmd) return
   try {
