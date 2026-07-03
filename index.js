@@ -248,6 +248,14 @@ sock.ev.on('messages.upsert', async ({ messages, type }) => {
       m.key.participant || m.key.remoteJid
     )
 
+    sock.ev.on('group-participants.update', async update => {
+  try {
+    await welcomeHandler(sock, update)
+  } catch (e) {
+    console.log('WELCOME EVENT ERROR:', e.message)
+  }
+})
+
     const muted = await muteWatcher(sock, m)
     if (muted) continue
 
