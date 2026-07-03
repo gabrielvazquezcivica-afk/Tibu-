@@ -149,6 +149,8 @@ async function loadPlugins() {
 // ─── EJECUTAR COMANDO ───
 async function runCommand(sock, msg, comando, args) {
   const usuario = msg.key.participant || msg.key.remoteJid
+  const from = msg.key.remoteJid
+
   if (estaBaneado(usuario)) return
 
   if (from.endsWith('@g.us') && modoAdminActivo(from)) {
