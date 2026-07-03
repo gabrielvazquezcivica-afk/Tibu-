@@ -209,57 +209,78 @@ async function startBot() {
       }
     })
 
-    // 📩 MENSAJES: PROCESO RÁPIDO + MUTE ANTES DE PREFIJO
-    sock.ev.on('messages.upsert', async ({ messages, type }) => {
-      if (type !== 'notify') return
+    // 📩 MENSAJES
+sock.ev.on('messages.upsert', async ({ messages, type }) => {
+  if (type !== 'notify') return
 
-      for (const m of messages) {
-        if (!m || m.key.fromMe || !m.message) continue
-
-        const remitente = cache.limpiarJid(m.key.participant || m.key.remoteJid)
-
-       for (const m of messages) {
+  for (const m of messages) {
     if (!m || m.key.fromMe || !m.message) continue
+
+    const remitente = cache.limpiarJid(
+      m.key.participant || m.key.remoteJid
+    )
 
     const muted = await muteWatcher(sock, m)
     if (muted) continue
 
-        const texto = m.message.conversation || m.message.extendedTextMessage?.text || ''
+    const texto =
+      m.message.conversation ||
+      m.message.extendedTextMessage?.text ||
+      ''
 
-        if (!texto.startsWith(config.PREFIX)) {
-          const from = m.key.remoteJid
-          if (from.endsWith('@g.us')) {
-            const datos = leerContadores()
-            if (!datos[from]) datos[from] = {}
-            if (!datos[from][remitente]) datos[from][remitente] = 0
-            datos[from][remitente] += 1
-            guardarContadores(datos)
-          }
-          continue
-        }
+    if (!texto.startsWith(config.PREFIX)) {
+      const from = m.key.remoteJid
 
-        sock.readMessages([m.key]).catch(() => {})
-
-        const bloques = texto.split(config.PREFIX).filter(b => b.trim())
-        const nombreUsuario = m.pushName || 'Desconocido'
-        const esGrupo = m.key.remoteJid?.endsWith('@g.us')
-        const nombreGrupo = esGrupo ? (cache.groupMeta.get(m.key.remoteJid)?.subject || 'Grupo') : 'Chat Privado'
-
-        console.log(chalk.yellowBright('╔══════════════════════════════════════╗'))
-        console.log(chalk.white(`║ 👤 USUARIO: ${nombreUsuario.padEnd(28)} ║`))
-        console.log(chalk.white(`║ 📍 EN: ${esGrupo ? `GRUPO: ${nombreGrupo}` : 'CHAT PRIVADO'}`.padEnd(38) + '║'))
-
-        const tareas = bloques.map(async bloque => {
-          const [comando, ...args] = bloque.trim().split(' ')
-          if (!comando) return
-          console.log(chalk.yellowBright(`║ 📥 COMANDO: ${config.PREFIX}${comando.padEnd(26)} ║`))
-          return runCommand(sock, m, comando, args)
-        })
-
-        console.log(chalk.yellowBright('╚══════════════════════════════════════╝\n'))
-        Promise.allSettled(tareas)
+      if (from.endsWith('@g.us')) {
+        const datos = leerContadores()
+        if (!datos[from]) datos[from] = {}
+        if (!datos[from][remitente]) datos[from][remitente] = 0
+        datos[from][remitente] += 1
+        guardarContadores(datos)
       }
+
+      continue
+    }
+
+    sock.readMessages([m.key]).catch(() => {})
+
+    const bloques = texto
+      .split(config.PREFIX)
+      .filter(b => b.trim())
+
+    const nombreUsuario = m.pushName || 'Desconocido'
+    const esGrupo = m.key.remoteJid?.endsWith('@g.us')
+    const nombreGrupo = esGrupo
+      ? (cache.groupMeta.get(m.key.remoteJid)?.subject || 'Grupo')
+      : 'Chat Privado'
+
+    console.log(chalk.yellowBright('╔══════════════════════════════════════╗'))
+    console.log(chalk.white(`║ 👤 USUARIO: ${nombreUsuario.padEnd(28)} ║`))
+    console.log(
+      chalk.white(
+        `║ 📍 EN: ${
+          esGrupo ? `GRUPO: ${nombreGrupo}` : 'CHAT PRIVADO'
+        }`.padEnd(38) + '║'
+      )
+    )
+
+    const tareas = bloques.map(async bloque => {
+      const [comando, ...args] = bloque.trim().split(' ')
+      if (!comando) return
+
+      console.log(
+        chalk.yellowBright(
+          `║ 📥 COMANDO: ${config.PREFIX}${comando.padEnd(26)} ║`
+        )
+      )
+
+      return runCommand(sock, m, comando, args)
     })
+
+    console.log(chalk.yellowBright('╚══════════════════════════════════════╝\n'))
+    Promise.allSettled(tareas)
+  }
+})
 
     sock.ev.on('connection.update', ({ connection }) => {
       if (connection === 'close') {
