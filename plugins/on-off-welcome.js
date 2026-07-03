@@ -100,7 +100,7 @@ handler.run = async (sock, m, args) => {
 }
 
 handler.command = ['welcome']
-handler.help = ['welcome']
+handler.help = ['welcome on/off']
 handler.tags = ['on-off']
 handler.menu = true
 
