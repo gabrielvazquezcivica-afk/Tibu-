@@ -33,7 +33,7 @@ handler.run = async (sock, m, args) => {
 
     const emojiTag = {
         'informacion': '⛱️',
-        'on-off': '🔛',
+        'on-off': '🌊',
         'grupo': '🏄🏻',
         'descargas': '⛵',
         'buscador': '🛥️',
