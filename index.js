@@ -6,7 +6,7 @@ import fetch from 'node-fetch'
 import chalk from 'chalk'
 import config from './config.js'
 import { muteWatcher } from './lib/muteWatcher.js'
-import { antiLink } from './lib/antiLink.js'
+import { antiLink } from './lib/antilink.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
