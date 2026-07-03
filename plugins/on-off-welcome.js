@@ -173,7 +173,7 @@ export async function welcomeHandler(sock, update) {
                 await sock.sendMessage(id, {
                     audio: Buffer.from(audio),
                     mimetype: 'audio/mp4',
-                    ptt: true
+                    ptt: false
                 })
             } catch (e) {
                 console.log('WELCOME AUDIO ERROR:', e)
@@ -212,7 +212,7 @@ export async function welcomeHandler(sock, update) {
                 await sock.sendMessage(id, {
                     audio: Buffer.from(audio),
                     mimetype: 'audio/mp4',
-                    ptt: true
+                    ptt: false
                 })
             } catch (e) {
                 console.log('BYE AUDIO ERROR:', e)
