@@ -1,53 +1,115 @@
 import config from '../config.js'
-import { limpiarJid, leerDB, guardarDB } from '../lib/muteWatcher.js'
+import fs from 'fs'
+import path from 'path'
+
+const ruta = path.join(process.cwd(), 'database', 'muteados.json')
+
+function leerDB() {
+    try {
+        return JSON.parse(fs.readFileSync(ruta, 'utf8'))
+    } catch {
+        return {}
+    }
+}
+
+function guardarDB(db) {
+    fs.mkdirSync(path.dirname(ruta), { recursive: true })
+    fs.writeFileSync(ruta, JSON.stringify(db, null, 2))
+}
 
 let handler = {}
 
-handler.run = async (sock, m, args, { isAdmin }) => {
-  const from = m.key.remoteJid
-  const sender = limpiarJid(m.key.participant || m.key.remoteJid)
+handler.run = async (sock, m) => {
+    const from = m.key.remoteJid
+    const sender = m.key.participant || m.key.remoteJid
 
-  if (!from.endsWith('@g.us')) {
-    return sock.sendMessage(from, { text: '`🌊 Solo funciona en grupos`' }, { quoted: m })
-  }
+    if (!from.endsWith('@g.us')) {
+        await sock.sendMessage(from, {
+            react: { text: '🌊', key: m.key }
+        })
 
-  if (!await isAdmin(sock, from, sender)) {
-    await sock.sendMessage(from, { react: { text: '🚫', key: m.key } })
-    return
-  }
+        return sock.sendMessage(from, {
+            text: '`🌊 Solo funciona en grupos`'
+        }, { quoted: m })
+    }
 
-  let target = m.message?.extendedTextMessage?.contextInfo?.participant
-              || m.message?.extendedTextMessage?.contextInfo?.mentionedJid?.[0]
+    let metadata
+    try {
+        metadata = await sock.groupMetadata(from)
+    } catch {
+        return sock.sendMessage(from, {
+            text: '`❌ No pude leer el grupo`'
+        }, { quoted: m })
+    }
 
-  if (!target) {
-    return sock.sendMessage(from, { text: '`❌ Responde o menciona un usuario`' }, { quoted: m })
-  }
+    const participantes = metadata.participants || []
 
-  target = limpiarJid(target)
+    const adminInfo = participantes.find(
+        p => p.id === sender || p.jid === sender
+    )
 
-  const db = leerDB()
-  if (!db[from]) db[from] = []
+    const isAdmin =
+        adminInfo?.admin === 'admin' ||
+        adminInfo?.admin === 'superadmin'
 
-  if (!db[from].includes(target)) {
-    await sock.sendMessage(from, { react: { text: '⚠️', key: m.key } })
-    return sock.sendMessage(from, { text: '`⚠️ Ese usuario no estaba muteado`' }, { quoted: m })
-  }
+    if (!isAdmin) {
+        await sock.sendMessage(from, {
+            react: { text: '🚫', key: m.key }
+        })
 
-  db[from] = db[from].filter(u => limpiarJid(u) !== target)
-  guardarDB(db)
+        return sock.sendMessage(from, {
+            text: '`🚫 Solo capitanes pueden liberarlo`'
+        }, { quoted: m })
+    }
 
-  // ✅ QUITAR DE LISTA INMEDIATAMENTE
-  global.silenciadosCache.delete(target)
+    let target =
+        m.message?.extendedTextMessage?.contextInfo?.participant ||
+        m.message?.extendedTextMessage?.contextInfo?.mentionedJid?.[0]
 
-  await sock.sendMessage(from, { react: { text: '🔊', key: m.key } })
-  await sock.sendMessage(from, {
-    text: `🌊 𝐔𝐒𝐔𝐀𝐑𝐈𝐎 𝐃𝐄𝐒𝐒𝐈𝐋𝐄𝐍𝐂𝐈𝐀𝐃𝐎 🔊\n\n👤 Usuario: @${target.split('@')[0]}\n🦈 Activado por: @${sender.split('@')[0]}\n\n> ${config.BOT_NAME}`,
-    mentions: [target, sender]
-  }, { quoted: m })
+    if (!target) {
+        await sock.sendMessage(from, {
+            react: { text: '❌', key: m.key }
+        })
+
+        return sock.sendMessage(from, {
+            text: '`❌ Responde o menciona un usuario`'
+        }, { quoted: m })
+    }
+
+    const db = leerDB()
+
+    if (!db[from]) db[from] = []
+
+    if (!db[from].includes(target)) {
+        await sock.sendMessage(from, {
+            react: { text: '⚠️', key: m.key }
+        })
+
+        return sock.sendMessage(from, {
+            text: '`⚠️ Ese tripulante no está silenciado`'
+        }, { quoted: m })
+    }
+
+    db[from] = db[from].filter(x => x !== target)
+    guardarDB(db)
+
+    await sock.sendMessage(from, {
+        react: { text: '🔊', key: m.key }
+    })
+
+    await sock.sendMessage(from, {
+        text:
+            `🔊 𝐓𝐑𝐈𝐏𝐔𝐋𝐀𝐍𝐓𝐄 𝐋𝐈𝐁𝐄𝐑𝐀𝐃𝐎\n\n` +
+            `👤 Usuario: @${target.split('@')[0]}\n` +
+            `🦈 Capitán: @${sender.split('@')[0]}\n\n` +
+            `🌊 Puede volver a navegar\n\n` +
+            `> ${config.BOT_NAME}`,
+        mentions: [target, sender]
+    }, { quoted: m })
 }
 
 handler.command = ['unmute']
-handler.help = ['unmute @usuario']
+handler.help = ['unmute']
 handler.tags = ['grupo']
 handler.menu = true
 
