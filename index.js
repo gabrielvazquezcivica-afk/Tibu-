@@ -209,19 +209,22 @@ async function startBot() {
       }
     })
 
-    // ✅ SOLO PROCESA SI EMPIEZA CON PREFIJO
+    // 📩 MENSAJES: PROCESO RÁPIDO + MUTE ANTES DE PREFIJO
     sock.ev.on('messages.upsert', async ({ messages, type }) => {
       if (type !== 'notify') return
 
       for (const m of messages) {
         if (!m || m.key.fromMe || !m.message) continue
 
+        // ✅ PRIMERO: VERIFICAR SILENCIO EN TODOS LOS MENSAJES
+        const muted = await muteWatcher(sock, m)
+        if (muted) return // Si está silenciado, borra y termina
+
         // Leer texto rápido
         const texto = m.message.conversation || m.message.extendedTextMessage?.text || ''
 
-        // SI NO EMPIEZA CON PREFIJO → SALTA INMEDIATAMENTE (no cuenta, no procesa nada)
+        // SI NO ES COMANDO: solo cuenta y sigue
         if (!texto.startsWith(config.PREFIX)) {
-          // Solo cuenta mensaje normal SIN DETENER FLUJO
           const from = m.key.remoteJid
           const remitente = m.key.participant || m.key.remoteJid
           if (from.endsWith('@g.us')) {
@@ -234,10 +237,7 @@ async function startBot() {
           continue
         }
 
-        // Si llega aquí ES COMANDO → procesar completo
-        const muted = await muteWatcher(sock, m)
-        if (muted) return
-
+        // SI ES COMANDO: procesa completo
         sock.readMessages([m.key]).catch(() => {})
 
         const bloques = texto.split(config.PREFIX).filter(b => b.trim())
