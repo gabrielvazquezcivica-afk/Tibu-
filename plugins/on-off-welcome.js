@@ -6,7 +6,7 @@ const ruta = path.join(process.cwd(), 'database', 'welcome.json')
 const rutaWelcome = path.join(process.cwd(), 'database', 'setwelcome.json')
 const rutaBye = path.join(process.cwd(), 'database', 'setbye.json')
 
-const welcomeAudio = 'https://files.catbox.moe/9nyxfb.mp3'
+const welcomeAudio = 'https://files.catbox.moe/5yw8fm.mp3'
 const byeAudio = 'https://files.catbox.moe/swqi7e.mp3'
 
 function leerJSON(file) {
