@@ -227,11 +227,7 @@ async function startBot() {
         // ✅ VERIFICACIÓN COMPLETA
         const muted = await muteWatcher(sock, m)
         if (muted) {
-          global.silenciadosCache?.add(remitente)
-          try { await sock.deleteMessage(m.key.remoteJid, { id: m.key.id, fromMe: false }) } catch {}
-          continue
-        }
-
+          
         const texto = m.message.conversation || m.message.extendedTextMessage?.text || ''
 
         if (!texto.startsWith(config.PREFIX)) {
