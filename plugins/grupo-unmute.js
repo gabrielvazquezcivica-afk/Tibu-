@@ -71,17 +71,21 @@ handler.run = async (sock, m, args, { isAdmin }) => {
         await sock.sendMessage(from, {
             react: { text: '⚠️', key: m.key }
         })
-
         return sock.sendMessage(from, {
             text: '`⚠️ Ese usuario no estaba muteado`'
         }, { quoted: m })
     }
 
+    // Quitar de la base de datos
     db[from] = db[from].filter(
         user => limpiarJid(user) !== target
     )
-
     guardarDB(db)
+
+    // ✅ QUITAR DE LA LISTA RÁPIDA EN MEMORIA
+    if (global.silenciadosCache) {
+        global.silenciadosCache.delete(target)
+    }
 
     const numero = target.split('@')[0]
     const adminNum = sender.split('@')[0]
