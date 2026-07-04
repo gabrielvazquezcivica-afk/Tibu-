@@ -2,6 +2,7 @@ import config from '../config.js'
 
 function obtenerSaludo() {
     const hora = new Date().getHours()
+
     if (hora >= 5 && hora < 12) return '🌅 ¡Buenos días'
     if (hora >= 12 && hora < 19) return '☀️ ¡Buenas tardes'
     return '🌙 ¡Buenas noches'
@@ -9,13 +10,21 @@ function obtenerSaludo() {
 
 let handler = {}
 
-handler.run = async (sock, m, args, { commands }) => {
+handler.run = async (sock, m) => {
     const from = m.key.remoteJid
-    const nombreUsuario = m.pushName || 'Capitán'
+    const plugins = [...(global.plugins || [])]
+
+    if (!plugins.length) {
+        return sock.sendMessage(from, {
+            text: '❌ No hay comandos disponibles'
+        }, { quoted: m })
+    }
 
     await sock.sendMessage(from, {
         react: { text: '🦈', key: m.key }
     })
+
+    const nombreUsuario = m.pushName || 'Capitán'
 
     const emojiTag = {
         informacion: '⛱️',
@@ -43,56 +52,49 @@ handler.run = async (sock, m, args, { commands }) => {
 
     const grupos = {}
 
-    for (const [, cmd] of commands) {
-        try {
-            if (!cmd) continue
-            if (!Array.isArray(cmd.help)) continue
-            if (!Array.isArray(cmd.tags)) continue
+    for (const p of plugins) {
+        if (!p.menu || !p.command) continue
 
-            let tag = cmd.tags[0]?.toLowerCase() || 'otros'
+        const cmds = Array.isArray(p.command)
+            ? p.command
+            : [p.command]
 
-            if (!grupos[tag]) grupos[tag] = []
+        const tag = p.tags?.[0] || 'informacion'
 
-            cmd.help.forEach(ayuda => {
-                if (ayuda.includes(' ')) {
-                    const [base, ...params] = ayuda.split(' ')
-                    grupos[tag].push(
-                        `${base} \`${params.join(' ')}\``
-                    )
-                } else {
-                    grupos[tag].push(ayuda)
-                }
-            })
-        } catch {}
+        if (!grupos[tag]) grupos[tag] = []
+        grupos[tag].push(...cmds)
     }
 
     let texto = `┌───────────────────────────┐
 │ 🦈 ${config.BOT_NAME.toUpperCase()} 🦈
 │ 👤 Usuario: ${nombreUsuario}
-│ 👑 Dueño: ${config.OWNER_NAME || 'Desconocido'}
+│ 👑 Dueño: ${config.OWNER_NAME}
 │ 💬 Saludo: ${obtenerSaludo()}
 │ ⚓ Prefijo: ${config.PREFIX}
 └───────────────────────────┘\n`
 
-    ordenTags.forEach(tag => {
-        if (!grupos[tag]) return
+    for (const tag of ordenTags) {
+        if (!grupos[tag]) continue
 
         const icono = emojiTag[tag] || '📌'
+        const cmds = [...new Set(grupos[tag])].sort()
 
         texto += `\n┌─ ${icono} ${tag.toUpperCase()} ─┐\n`
 
-        grupos[tag].forEach(comando => {
-            texto += `│ ${icono} ${config.PREFIX}${comando}\n`
-        })
+        for (const cmd of cmds) {
+            texto += `│ ${icono} ${config.PREFIX}${cmd}\n`
+        }
 
         texto += `└───────────────────────────┘`
-    })
+    }
 
     texto += `\n\n🌊 Navega con cuidado y disfruta de estas aguas 🦈`
 
     try {
         await sock.sendMessage(from, {
-            image: { url: 'https://files.catbox.moe/57rwz7.png' },
+            image: {
+                url: 'https://files.catbox.moe/57rwz7.png'
+            },
             caption: texto
         }, { quoted: m })
     } catch {
