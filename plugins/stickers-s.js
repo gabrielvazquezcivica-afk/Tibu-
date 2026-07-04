@@ -1,4 +1,6 @@
 import { downloadContentFromMessage } from '@whiskeysockets/baileys'
+import { toSticker } from '../lib/sticker.js'
+import { writeExif } from '../lib/exif.js'
 import config from '../config.js'
 
 async function descargar(media, tipo) {
@@ -17,6 +19,7 @@ let handler = {}
 handler.run = async (sock, m) => {
     const from = m.key.remoteJid
     const msg = m.message
+
     const quoted =
         msg?.extendedTextMessage?.contextInfo?.quotedMessage
 
@@ -27,8 +30,22 @@ handler.run = async (sock, m) => {
         quoted?.videoMessage
 
     if (!media) {
+        await sock.sendMessage(from, {
+            react: { text: '❌', key: m.key }
+        })
+
         return sock.sendMessage(from, {
-            text: '`Responde una imagen o video`'
+            text: '`Responde o envía una imagen/video`'
+        }, { quoted: m })
+    }
+
+    if (media.seconds && media.seconds > 15) {
+        await sock.sendMessage(from, {
+            react: { text: '⚠️', key: m.key }
+        })
+
+        return sock.sendMessage(from, {
+            text: '`Máximo 15 segundos`'
         }, { quoted: m })
     }
 
@@ -37,24 +54,41 @@ handler.run = async (sock, m) => {
             react: { text: '🌀', key: m.key }
         })
 
-        const tipo = media.mimetype?.startsWith('video')
-            ? 'video'
-            : 'image'
+        const isVideo = !!media.seconds
+        const tipo = isVideo ? 'video' : 'image'
 
         const buffer = await descargar(media, tipo)
 
+        let sticker = await toSticker(buffer, isVideo)
+
+        sticker = await writeExif(
+            sticker,
+            config.BOT_NAME,
+            config.OWNER_NAME
+        )
+
         await sock.sendMessage(from, {
-            sticker: buffer,
-            packname: config.BOT_NAME,
-            author: config.OWNER_NAME
+            sticker
         }, { quoted: m })
+
+        await sock.sendMessage(from, {
+            react: { text: '✅', key: m.key }
+        })
 
     } catch (e) {
         console.log('STICKER ERROR:', e)
+
+        await sock.sendMessage(from, {
+            react: { text: '❌', key: m.key }
+        })
+
+        sock.sendMessage(from, {
+            text: '`Error al crear sticker`'
+        }, { quoted: m })
     }
 }
 
-handler.command = ['s']
+handler.command = ['s', 'sticker']
 handler.help = ['s']
 handler.tags = ['stickers']
 handler.menu = true
