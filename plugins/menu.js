@@ -97,22 +97,26 @@ handler.run = async (sock, m, args, { commands }) => {
 
     texto += `\n\n🌊 Navega con cuidado y disfruta de estas aguas 🦈`
 
-    try {
-        console.time('MENU_SEND')
+    console.log('Caracteres del menú:', texto.length)
 
-await sock.sendMessage(from, {
-    image: {
-        url: 'https://files.catbox.moe/tkl91o.png'
-    },
-    caption: texto
-}, { quoted: m })
+try {
+    console.time('MENU_SEND')
 
-console.timeEnd('MENU_SEND')
-    } catch {
-        await sock.sendMessage(from, {
-            text: texto
-        }, { quoted: m })
-    }
+    await sock.sendMessage(from, {
+        image: {
+            url: 'https://files.catbox.moe/57rwz7.png'
+        },
+        caption: 'Hola'
+    }, { quoted: m })
+
+    console.timeEnd('MENU_SEND')
+} catch (e) {
+    console.log(e)
+
+    await sock.sendMessage(from, {
+        text: 'Hola'
+    }, { quoted: m })
+}
 }
 
 handler.command = ['menu', 'comandos', 'ayuda']
