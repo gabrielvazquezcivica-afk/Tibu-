@@ -189,6 +189,7 @@ async function runCommand(sock, msg, comando, args) {
 
   try {
     cmd.run(sock, msg, args, {
+      commands,
       isAdmin,
       isBotAdmin,
       limpiarJid: cache.limpiarJid
