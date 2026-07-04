@@ -102,7 +102,7 @@ handler.run = async (sock, m, args, { commands }) => {
 
 await sock.sendMessage(from, {
     image: {
-        url: 'https://files.catbox.moe/57rwz7.png'
+        url: 'https://files.catbox.moe/tkl91o.png'
     },
     caption: texto
 }, { quoted: m })
