@@ -62,11 +62,15 @@ handler.run = async (sock, m) => {
         const buffer = await descargar(media, tipo)
         let sticker = await toSticker(buffer, isVideo)
 
-        sticker = await writeExif(
-            sticker,
-            config.BOT_NAME,
-            config.OWNER_NAME
-        )
+        console.log('ANTES EXIF:', sticker.length)
+
+sticker = await writeExif(
+    sticker,
+    config.BOT_NAME,
+    config.OWNER_NAME
+)
+
+console.log('DESPUES EXIF:', sticker.length)
 
         await sock.sendMessage(from, {
             sticker
