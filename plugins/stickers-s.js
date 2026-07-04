@@ -1,7 +1,5 @@
 import { downloadContentFromMessage } from '@whiskeysockets/baileys'
 import { toSticker } from '../lib/sticker-s.js'
-import { writeExif } from '../lib/exif.js'
-import config from '../config.js'
 
 async function descargar(media, tipo) {
     const stream = await downloadContentFromMessage(media, tipo)
@@ -35,23 +33,13 @@ handler.run = async (sock, m) => {
         })
 
         return sock.sendMessage(from, {
-            text:
-`🌊 𝐒𝐓𝐈𝐂𝐊𝐄𝐑
-
-⚓ Usa:
-.s (respondiendo foto/video)
-
-> Video máximo: 15s`
+            text: '`Responde a una imagen o video`'
         }, { quoted: m })
     }
 
     if (media.seconds && media.seconds > 15) {
-        await sock.sendMessage(from, {
-            react: { text: '⚠️', key: m.key }
-        })
-
         return sock.sendMessage(from, {
-            text: '`⚠️ Máximo 15 segundos`'
+            text: '`Máximo 15 segundos`'
         }, { quoted: m })
     }
 
@@ -63,15 +51,19 @@ handler.run = async (sock, m) => {
         const isVideo = !!media.seconds
         const tipo = isVideo ? 'video' : 'image'
 
+        console.log('TIPO:', tipo)
+
         const buffer = await descargar(media, tipo)
 
-        let sticker = await toSticker(buffer, isVideo)
+        console.log('BUFFER SIZE:', buffer.length)
 
-        sticker = await writeExif(
-            sticker,
-            config.BOT_NAME,
-            config.OWNER_NAME
-        )
+        if (!buffer || buffer.length === 0) {
+            throw new Error('Buffer vacío')
+        }
+
+        const sticker = await toSticker(buffer, isVideo)
+
+        console.log('STICKER SIZE:', sticker.length)
 
         await sock.sendMessage(from, {
             sticker
@@ -89,7 +81,7 @@ handler.run = async (sock, m) => {
         })
 
         await sock.sendMessage(from, {
-            text: '`❌ Error al crear sticker`'
+            text: '`Error al crear sticker`'
         }, { quoted: m })
     }
 }
