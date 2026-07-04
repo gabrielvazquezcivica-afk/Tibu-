@@ -1,13 +1,4 @@
 import config from '../config.js'
-import fs from 'fs'
-import path from 'path'
-import { fileURLToPath } from 'url'
-
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
-
-let menuCache = null
-let menuCacheTime = 0
 
 function obtenerSaludo() {
     const hora = new Date().getHours()
@@ -18,7 +9,7 @@ function obtenerSaludo() {
 
 let handler = {}
 
-handler.run = async (sock, m, args) => {
+handler.run = async (sock, m, args, { commands }) => {
     const from = m.key.remoteJid
     const nombreUsuario = m.pushName || 'Capitán'
 
@@ -26,47 +17,16 @@ handler.run = async (sock, m, args) => {
         react: { text: '🦈', key: m.key }
     })
 
-    // CACHE (5 min)
-    if (menuCache && Date.now() - menuCacheTime < 300000) {
-        try {
-            return await sock.sendMessage(from, {
-                image: { url: 'https://files.catbox.moe/57rwz7.png' },
-                caption: menuCache
-            }, { quoted: m })
-        } catch {
-            return await sock.sendMessage(from, {
-                text: menuCache
-            }, { quoted: m })
-        }
-    }
-
-    const pluginsDir = path.join(__dirname, '../plugins')
-
-    if (!fs.existsSync(pluginsDir)) {
-        return sock.sendMessage(from, {
-            text: '`❌ No existe la carpeta de plugins`'
-        }, { quoted: m })
-    }
-
-    const archivos = fs.readdirSync(pluginsDir)
-        .filter(f => f.endsWith('.js'))
-
-    if (archivos.length === 0) {
-        return sock.sendMessage(from, {
-            text: '`❌ No hay comandos cargados`'
-        }, { quoted: m })
-    }
-
     const emojiTag = {
-        'informacion': '⛱️',
+        informacion: '⛱️',
         'on-off': '🌊',
-        'grupo': '🏄🏻',
-        'descargas': '⛵',
-        'buscador': '🛥️',
-        'herramientas': '🌅',
-        'diversión': '🐚',
-        'owner': '🚢',
-        'stickers': '☀️'
+        grupo: '🏄🏻',
+        descargas: '⛵',
+        buscador: '🛥️',
+        herramientas: '🌅',
+        diversión: '🐚',
+        owner: '🚢',
+        stickers: '☀️'
     }
 
     const ordenTags = [
@@ -83,17 +43,11 @@ handler.run = async (sock, m, args) => {
 
     const grupos = {}
 
-    for (const archivo of archivos) {
+    for (const [, cmd] of commands) {
         try {
-            const ruta = path.join(pluginsDir, archivo)
-            const plugin = await import(ruta)
-            const cmd = plugin.default
-
-            if (
-                !cmd ||
-                !Array.isArray(cmd.help) ||
-                !Array.isArray(cmd.tags)
-            ) continue
+            if (!cmd) continue
+            if (!Array.isArray(cmd.help)) continue
+            if (!Array.isArray(cmd.tags)) continue
 
             let tag = cmd.tags[0]?.toLowerCase() || 'otros'
 
@@ -122,6 +76,7 @@ handler.run = async (sock, m, args) => {
 
     ordenTags.forEach(tag => {
         if (!grupos[tag]) return
+
         const icono = emojiTag[tag] || '📌'
 
         texto += `\n┌─ ${icono} ${tag.toUpperCase()} ─┐\n`
@@ -134,9 +89,6 @@ handler.run = async (sock, m, args) => {
     })
 
     texto += `\n\n🌊 Navega con cuidado y disfruta de estas aguas 🦈`
-
-    menuCache = texto
-    menuCacheTime = Date.now()
 
     try {
         await sock.sendMessage(from, {
