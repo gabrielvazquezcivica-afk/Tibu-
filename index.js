@@ -145,6 +145,7 @@ const sistema = async (sock, from, titulo = `${config.BOT_NAME} 🦈`) => {
 // ─── CARGAR PLUGINS ───
 async function loadPlugins() {
   commands.clear()
+  global.plugins = []
   const pluginsDir = path.join(__dirname, 'plugins')
   if (!fs.existsSync(pluginsDir)) fs.mkdirSync(pluginsDir)
   console.log(chalk.magentaBright('📂 Cargando Plugins...\n'))
@@ -154,6 +155,11 @@ async function loadPlugins() {
     try {
       const plugin = await import(`./plugins/${file}`)
       const handler = plugin.default
+
+      if (handler) {
+  global.plugins.push(handler)
+}
+
       if (handler && Array.isArray(handler.command) && Array.isArray(handler.help)) {
         handler.command.forEach(cmd => commands.set(cmd.toLowerCase(), handler))
         totalComandos += handler.help.length
