@@ -2,7 +2,6 @@ import config from '../config.js'
 
 function obtenerSaludo() {
     const hora = new Date().getHours()
-
     if (hora >= 5 && hora < 12) return '🌅 ¡Buenos días'
     if (hora >= 12 && hora < 19) return '☀️ ¡Buenas tardes'
     return '🌙 ¡Buenas noches'
@@ -10,21 +9,19 @@ function obtenerSaludo() {
 
 let handler = {}
 
-handler.run = async (sock, m) => {
+handler.run = async (sock, m, args, { commands }) => {
     const from = m.key.remoteJid
-    const plugins = [...(global.plugins || [])]
-
-    if (!plugins.length) {
-        return sock.sendMessage(from, {
-            text: '❌ No hay comandos disponibles'
-        }, { quoted: m })
-    }
+    const nombreUsuario = m.pushName || 'Capitán'
 
     await sock.sendMessage(from, {
         react: { text: '🦈', key: m.key }
     })
 
-    const nombreUsuario = m.pushName || 'Capitán'
+    if (!commands || commands.size === 0) {
+        return sock.sendMessage(from, {
+            text: '`❌ No hay comandos cargados`'
+        }, { quoted: m })
+    }
 
     const emojiTag = {
         informacion: '⛱️',
@@ -51,42 +48,52 @@ handler.run = async (sock, m) => {
     ]
 
     const grupos = {}
+    const handlersUnicos = [...new Set(commands.values())]
 
-    for (const p of plugins) {
-        if (!p.menu || !p.command) continue
+    for (const cmd of handlersUnicos) {
+        try {
+            if (!cmd) continue
+            if (!Array.isArray(cmd.help)) continue
+            if (!Array.isArray(cmd.tags)) continue
 
-        const cmds = Array.isArray(p.command)
-            ? p.command
-            : [p.command]
+            let tag = cmd.tags[0]?.toLowerCase() || 'otros'
 
-        const tag = p.tags?.[0] || 'informacion'
+            if (!grupos[tag]) grupos[tag] = []
 
-        if (!grupos[tag]) grupos[tag] = []
-        grupos[tag].push(...cmds)
+            cmd.help.forEach(ayuda => {
+                if (ayuda.includes(' ')) {
+                    const [base, ...params] = ayuda.split(' ')
+                    grupos[tag].push(
+                        `${base} \`${params.join(' ')}\``
+                    )
+                } else {
+                    grupos[tag].push(ayuda)
+                }
+            })
+        } catch {}
     }
 
     let texto = `┌───────────────────────────┐
 │ 🦈 ${config.BOT_NAME.toUpperCase()} 🦈
 │ 👤 Usuario: ${nombreUsuario}
-│ 👑 Dueño: ${config.OWNER_NAME}
+│ 👑 Dueño: ${config.OWNER_NAME || 'Desconocido'}
 │ 💬 Saludo: ${obtenerSaludo()}
 │ ⚓ Prefijo: ${config.PREFIX}
 └───────────────────────────┘\n`
 
-    for (const tag of ordenTags) {
-        if (!grupos[tag]) continue
+    ordenTags.forEach(tag => {
+        if (!grupos[tag]) return
 
         const icono = emojiTag[tag] || '📌'
-        const cmds = [...new Set(grupos[tag])].sort()
 
         texto += `\n┌─ ${icono} ${tag.toUpperCase()} ─┐\n`
 
-        for (const cmd of cmds) {
-            texto += `│ ${icono} ${config.PREFIX}${cmd}\n`
-        }
+        grupos[tag].forEach(comando => {
+            texto += `│ ${icono} ${config.PREFIX}${comando}\n`
+        })
 
         texto += `└───────────────────────────┘`
-    }
+    })
 
     texto += `\n\n🌊 Navega con cuidado y disfruta de estas aguas 🦈`
 
