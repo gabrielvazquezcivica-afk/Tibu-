@@ -98,12 +98,16 @@ handler.run = async (sock, m, args, { commands }) => {
     texto += `\n\n🌊 Navega con cuidado y disfruta de estas aguas 🦈`
 
     try {
-        await sock.sendMessage(from, {
-            image: {
-                url: 'https://files.catbox.moe/57rwz7.png'
-            },
-            caption: texto
-        }, { quoted: m })
+        console.time('MENU_SEND')
+
+await sock.sendMessage(from, {
+    image: {
+        url: 'https://files.catbox.moe/57rwz7.png'
+    },
+    caption: texto
+}, { quoted: m })
+
+console.timeEnd('MENU_SEND')
     } catch {
         await sock.sendMessage(from, {
             text: texto
