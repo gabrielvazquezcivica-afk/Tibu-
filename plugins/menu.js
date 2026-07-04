@@ -102,14 +102,11 @@ handler.run = async (sock, m, args, { commands }) => {
 try {
     console.time('MENU_SEND')
 
-    await sock.sendMessage(from, {
-        image: {
-            url: 'https://files.catbox.moe/57rwz7.png'
-        },
-        caption: 'Hola'
-    }, { quoted: m })
+await sock.sendMessage(from, {
+    text: texto
+}, { quoted: m })
 
-    console.timeEnd('MENU_SEND')
+console.timeEnd('MENU_SEND')
 } catch (e) {
     console.log(e)
 
