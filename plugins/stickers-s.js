@@ -96,7 +96,7 @@ handler.run = async (sock, m) => {
 
 handler.command = ['s', 'sticker']
 handler.help = ['s']
-handler.tags = ['sticker']
+handler.tags = ['stickers']
 handler.menu = true
 
 export default handler
