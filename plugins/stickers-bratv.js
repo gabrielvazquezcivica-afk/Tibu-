@@ -70,8 +70,8 @@ handler.run = async (sock, m, args) => {
     }
 }
 
-handler.command = ['brat']
-handler.help = ['brat <texto>']
+handler.command = ['bratv']
+handler.help = ['bratv <texto>']
 handler.tags = ['stickers']
 handler.menu = true
 
