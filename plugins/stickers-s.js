@@ -1,7 +1,6 @@
+import fs from 'fs'
 import { downloadContentFromMessage } from '@whiskeysockets/baileys'
 import { toSticker } from '../lib/sticker-s.js'
-import { writeExif } from '../lib/exif.js'
-import config from '../config.js'
 
 async function descargar(media, tipo) {
     const stream = await downloadContentFromMessage(media, tipo)
@@ -18,74 +17,51 @@ let handler = {}
 
 handler.run = async (sock, m) => {
     const from = m.key.remoteJid
-    const msg = m.message
+    const quoted = m.message?.extendedTextMessage?.contextInfo?.quotedMessage
 
-    const quoted =
-        msg?.extendedTextMessage?.contextInfo?.quotedMessage
+    let media = null
+    let tipo = null
+    let isVideo = false
 
-    const media =
-        msg?.imageMessage ||
-        msg?.videoMessage ||
-        quoted?.imageMessage ||
-        quoted?.videoMessage
-
-    if (!media) {
-        await sock.sendMessage(from, {
-            react: { text: '❌', key: m.key }
-        })
-
-        return sock.sendMessage(from, {
-            text:
-`🌊 𝐒𝐓𝐈𝐂𝐊𝐄𝐑
-
-⚓ Usa:
-.s (respondiendo foto/video)
-
-> Video máximo: 15s`
-        }, { quoted: m })
+    if (quoted?.imageMessage) {
+        media = quoted.imageMessage
+        tipo = 'image'
     }
 
-    if (media.seconds && media.seconds > 15) {
+    else if (quoted?.videoMessage) {
+        media = quoted.videoMessage
+        tipo = 'video'
+        isVideo = true
+
+        const segundos = media.seconds || 0
+
+        if (segundos > 15) {
+            return sock.sendMessage(from, {
+                text: '`🌊 El video no debe pasar de 15 segundos`'
+            }, { quoted: m })
+        }
+    }
+
+    else {
         return sock.sendMessage(from, {
-            text: '`⚠️ Máximo 15 segundos`'
+            text: '`🌊 Responde a una foto o video con .s`'
         }, { quoted: m })
     }
 
     try {
         await sock.sendMessage(from, {
-            react: { text: '🌀', key: m.key }
+            react: { text: '🦈', key: m.key }
         })
 
-        const isVideo = !!media.seconds
-        const tipo = isVideo ? 'video' : 'image'
-
         const buffer = await descargar(media, tipo)
-        let sticker = await toSticker(buffer, isVideo)
-
-        console.log('ANTES EXIF:', sticker.length)
-
-sticker = await writeExif(
-    sticker,
-    config.BOT_NAME,
-    config.OWNER_NAME
-)
-
-console.log('DESPUES EXIF:', sticker.length)
+        const sticker = await toSticker(buffer, isVideo)
 
         await sock.sendMessage(from, {
             sticker
         }, { quoted: m })
 
-        await sock.sendMessage(from, {
-            react: { text: '✅', key: m.key }
-        })
-
     } catch (e) {
         console.log('STICKER ERROR:', e)
-
-        await sock.sendMessage(from, {
-            react: { text: '❌', key: m.key }
-        })
 
         await sock.sendMessage(from, {
             text: '`❌ Error al crear sticker`'
