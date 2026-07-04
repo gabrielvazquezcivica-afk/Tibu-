@@ -1,5 +1,5 @@
 import { downloadContentFromMessage } from '@whiskeysockets/baileys'
-import { toSticker } from '../lib/sticker.js'
+import { toSticker } from '../lib/sticker-s.js'
 import { writeExif } from '../lib/exif.js'
 import config from '../config.js'
 
