@@ -113,21 +113,6 @@ function modoAdminActivo(grupo) {
   }
 }
 
-async function isBotAdmin(sock, groupId) {
-  const botJid = cache.limpiarJid(sock.user.id)
-  return isAdmin(sock, groupId, botJid)
-}
-
-const rutaModoAdmin = path.join(process.cwd(), 'database', 'modoadmin.json')
-
-function modoAdminActivo(grupo) {
-    try {
-        const db = JSON.parse(fs.readFileSync(rutaModoAdmin, 'utf8'))
-        return !!db[grupo]
-    } catch {
-        return false
-    }
-}
 
 // ─── MENSAJE CITADO ───
 const sistema = async (sock, from, titulo = `${config.BOT_NAME} 🦈`) => {
