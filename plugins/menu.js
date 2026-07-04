@@ -40,7 +40,7 @@ handler.run = async (sock, m, args) => {
         'herramientas': '🌅',
         'diversión': '🐚',
         'owner': '🚢',
-        'otros': '📌'
+        'stickers': '☀️'
     }
 
     const ordenTags = [
@@ -52,7 +52,7 @@ handler.run = async (sock, m, args) => {
         'herramientas',
         'diversión',
         'owner',
-        'otros'
+        'stickers'
     ]
 
     const grupos = {}
