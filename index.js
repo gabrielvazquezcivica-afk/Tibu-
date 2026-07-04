@@ -64,17 +64,17 @@ function guardarContadores(datos) {
 // ─── VERIFICACIONES ───
 async function isAdmin(sock, groupId, userJid) {
   try {
-    let metadata = cache.groupMeta.get(groupId)
+    const metadata = await sock.groupMetadata(groupId)
 
-    if (!metadata) {
-      metadata = await sock.groupMetadata(groupId)
-      cache.groupMeta.set(groupId, metadata)
-    }
-
-    const limpioUser = cache.limpiarJid(userJid)
+    const limpioUser = cache
+      .limpiarJid(userJid)
+      .split(':')[0]
 
     const participante = metadata.participants.find(p => {
-      const jid = cache.limpiarJid(p.id || p.jid)
+      const jid = cache
+        .limpiarJid(p.id || p.jid)
+        .split(':')[0]
+
       return jid === limpioUser
     })
 
@@ -84,6 +84,31 @@ async function isAdmin(sock, groupId, userJid) {
     )
   } catch (e) {
     console.log('isAdmin error:', e)
+    return false
+  }
+}
+
+async function isBotAdmin(sock, groupId) {
+  const botJid = cache
+    .limpiarJid(sock.user.id)
+    .split(':')[0]
+
+  return isAdmin(sock, groupId, botJid)
+}
+
+const rutaModoAdmin = path.join(
+  process.cwd(),
+  'database',
+  'modoadmin.json'
+)
+
+function modoAdminActivo(grupo) {
+  try {
+    const db = JSON.parse(
+      fs.readFileSync(rutaModoAdmin, 'utf8')
+    )
+    return !!db[grupo]
+  } catch {
     return false
   }
 }
