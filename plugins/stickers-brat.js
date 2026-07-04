@@ -18,12 +18,6 @@ handler.run = async (sock, m, args) => {
         }, { quoted: m })
     }
 
-    if (texto.length > 35) {
-        return sock.sendMessage(from, {
-            text: '⚠️ Máximo 35 caracteres.'
-        }, { quoted: m })
-    }
-
     await sock.sendMessage(from, {
         react: {
             text: '🕒',
