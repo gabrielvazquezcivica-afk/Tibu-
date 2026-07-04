@@ -35,7 +35,13 @@ handler.run = async (sock, m) => {
         })
 
         return sock.sendMessage(from, {
-            text: '`Responde o envía una imagen/video`'
+            text:
+`🌊 𝐒𝐓𝐈𝐂𝐊𝐄𝐑
+
+⚓ Usa:
+.s (respondiendo foto/video)
+
+> Video máximo: 15s`
         }, { quoted: m })
     }
 
@@ -45,7 +51,7 @@ handler.run = async (sock, m) => {
         })
 
         return sock.sendMessage(from, {
-            text: '`Máximo 15 segundos`'
+            text: '`⚠️ Máximo 15 segundos`'
         }, { quoted: m })
     }
 
@@ -82,15 +88,15 @@ handler.run = async (sock, m) => {
             react: { text: '❌', key: m.key }
         })
 
-        sock.sendMessage(from, {
-            text: '`Error al crear sticker`'
+        await sock.sendMessage(from, {
+            text: '`❌ Error al crear sticker`'
         }, { quoted: m })
     }
 }
 
 handler.command = ['s', 'sticker']
 handler.help = ['s']
-handler.tags = ['stickers']
+handler.tags = ['sticker']
 handler.menu = true
 
 export default handler
