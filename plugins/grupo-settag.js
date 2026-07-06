@@ -73,5 +73,5 @@ export default handler
 // 📤 Función para llamar desde tu comando .todos
 export function obtenerTag(grupo) {
     const db = leerDB()
-    return db[grupo] || '🦈' // Valor por defecto
+    return db[grupo] || '🦈'
 }
