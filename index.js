@@ -333,36 +333,42 @@ if (bloqueado) continue
       .filter(b => b.trim())
 
     const nombreUsuario = m.pushName || 'Desconocido'
-    const esGrupo = m.key.remoteJid?.endsWith('@g.us')
-    const nombreGrupo = esGrupo
-      ? (cache.groupMeta.get(m.key.remoteJid)?.subject || 'Grupo')
-      : 'Chat Privado'
+const esGrupo = m.key.remoteJid.endsWith('@g.us')
 
-    console.log(chalk.yellowBright('╔══════════════════════════════════════╗'))
-    console.log(chalk.white(`║ 👤 USUARIO: ${nombreUsuario.padEnd(28)} ║`))
-    console.log(
-      chalk.white(
-        `║ 📍 EN: ${
-          esGrupo ? `GRUPO: ${nombreGrupo}` : 'CHAT PRIVADO'
-        }`.padEnd(38) + '║'
-      )
+let nombreGrupo = 'Chat Privado'
+
+if (esGrupo) {
+  let metadata = cache.groupMeta.get(m.key.remoteJid)
+
+  if (!metadata) {
+    try {
+      metadata = await sock.groupMetadata(m.key.remoteJid)
+      cache.groupMeta.set(m.key.remoteJid, metadata)
+    } catch {}
+  }
+
+  nombreGrupo = metadata?.subject || 'Grupo'
+}
+
+console.log(chalk.yellowBright('╔══════════════════════════════════════╗'))
+console.log(chalk.white(`║ 👤 USUARIO: ${nombreUsuario.padEnd(28)} ║`))
+console.log(chalk.white(`║ 👥 GRUPO : ${nombreGrupo.padEnd(28)} ║`))
+
+const tareas = bloques.map(async bloque => {
+  const [comando, ...args] = bloque.trim().split(' ')
+  if (!comando) return
+
+  console.log(
+    chalk.yellowBright(
+      `║ 📥 COMANDO: ${config.PREFIX}${comando.padEnd(26)} ║`
     )
+  )
 
-    const tareas = bloques.map(async bloque => {
-      const [comando, ...args] = bloque.trim().split(' ')
-      if (!comando) return
+  return runCommand(sock, m, comando, args)
+})
 
-      console.log(
-        chalk.yellowBright(
-          `║ 📥 COMANDO: ${config.PREFIX}${comando.padEnd(26)} ║`
-        )
-      )
-
-      return runCommand(sock, m, comando, args)
-    })
-
-    console.log(chalk.yellowBright('╚══════════════════════════════════════╝\n'))
-    Promise.allSettled(tareas)
+console.log(chalk.yellowBright('╚══════════════════════════════════════╝\n'))
+Promise.allSettled(tareas)
   }
 })
 
