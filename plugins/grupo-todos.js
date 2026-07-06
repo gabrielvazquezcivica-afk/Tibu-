@@ -8,7 +8,7 @@ function leerDB() {
 }
 function obtenerTag(grupo) {
     const db = leerDB()
-    return db[grupo] || '│🦈'
+    return db[grupo] || '🦈'
 }
 
 let handler = {}
@@ -48,7 +48,7 @@ handler.run = async (sock, m) => {
         const jid = p.jid || p.id
         const numero = jid.split('@')[0]
         mentions.push(jid)
-        texto += `${etiqueta} @${numero}\n`
+        texto += `│${etiqueta} @${numero}\n`
     }
 
     const mensaje =
