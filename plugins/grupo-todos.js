@@ -39,7 +39,7 @@ handler.run = async (sock, m) => {
         return sock.sendMessage(from, { text: '`🚫 Solo administradores pueden usarlo`' }, { quoted: m })
     }
 
-    await sock.sendMessage(from, { react: { text: '📢', key: m.key } })
+    await sock.sendMessage(from, { react: { text: '🌅', key: m.key } })
     const etiqueta = obtenerTag(from)
     let texto = ''
     let mentions = []
