@@ -20,19 +20,16 @@ handler.run = async (sock, m, args, { isAdmin }) => {
     const from = m.key.remoteJid
     const usuario = m.key.participant || m.key.remoteJid
 
-    // 🔒 Solo en grupos
     if (!from.endsWith('@g.us')) {
         return sock.sendMessage(from, { text: '⚠️ Este comando solo funciona en grupos' }, { quoted: m })
     }
 
-    // 🔒 Solo administradores
     if (!await isAdmin(sock, from, usuario)) {
         return sock.sendMessage(from, { text: '🔒 Solo los administradores pueden restablecer la etiqueta' }, { quoted: m })
     }
 
     const db = leerDB()
 
-    // Verificar si tiene etiqueta personalizada
     if (!db[from]) {
         return sock.sendMessage(from, {
             text: 'ℹ️ Este grupo no tiene ninguna etiqueta personalizada configurada',
@@ -40,7 +37,6 @@ handler.run = async (sock, m, args, { isAdmin }) => {
         })
     }
 
-    // Eliminar la etiqueta
     delete db[from]
     guardarDB(db)
 
@@ -49,7 +45,7 @@ handler.run = async (sock, m, args, { isAdmin }) => {
     })
 
     return sock.sendMessage(from, {
-        text: '`✅ Etiqueta restablecida`\nAhora .todos usará el prefijo por defecto: 🦈',
+        text: '`✅ Etiqueta restablecida`\nAhora .todos usará el prefijo por defecto: **🦈**',
         quoted: m
     })
 }
