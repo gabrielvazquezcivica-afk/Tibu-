@@ -49,7 +49,7 @@ handler.run = async (sock, m, args, { isAdmin }) => {
     })
 
     return sock.sendMessage(from, {
-        text: '`✅ Etiqueta restablecida`\nAhora .todos usará el prefijo por defecto: **📢**',
+        text: '`✅ Etiqueta restablecida`\nAhora .todos usará el prefijo por defecto: 🦈',
         quoted: m
     })
 }
