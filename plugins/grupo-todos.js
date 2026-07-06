@@ -1,4 +1,5 @@
 import config from '../config.js'
+import { obtenerTag } from './settag.js' // 
 
 let handler = {}
 
@@ -56,6 +57,7 @@ handler.run = async (sock, m) => {
         react: { text: '📢', key: m.key }
     })
 
+    const etiqueta = obtenerTag(from)
     let texto = ''
     let mentions = []
 
@@ -64,7 +66,7 @@ handler.run = async (sock, m) => {
         const numero = jid.split('@')[0]
 
         mentions.push(jid)
-        texto += `┣ 🦈 @${numero}\n`
+        texto += `${etiqueta} @${numero}\n`
     }
 
     const mensaje =
