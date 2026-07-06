@@ -328,11 +328,11 @@ if (bloqueado) continue
 
     sock.readMessages([m.key]).catch(() => {})
 
-    const bloques = texto
-      .split(config.PREFIX)
-      .filter(b => b.trim())
+    const sinPrefijo = texto.slice(config.PREFIX.length).trim()
 
-    const nombreUsuario = m.pushName || 'Desconocido'
+const [comando, ...args] = sinPrefijo.split(/\s+/)
+
+const nombreUsuario = m.pushName || 'Desconocido'
 const esGrupo = m.key.remoteJid.endsWith('@g.us')
 
 let nombreGrupo = 'Chat Privado'
@@ -351,24 +351,24 @@ if (esGrupo) {
 }
 
 console.log(chalk.yellowBright('╔══════════════════════════════════════╗'))
-console.log(chalk.white(`║ 👤 USUARIO: ${nombreUsuario.padEnd(28)} ║`))
-console.log(chalk.white(`║ 👥 GRUPO : ${nombreGrupo.padEnd(28)} ║`))
-
-const tareas = bloques.map(async bloque => {
-  const [comando, ...args] = bloque.trim().split(' ')
-  if (!comando) return
-
-  console.log(
-    chalk.yellowBright(
-      `║ 📥 COMANDO: ${config.PREFIX}${comando.padEnd(26)} ║`
-    )
+console.log(
+  chalk.white(
+    `║ 👤 USUARIO: ${nombreUsuario.padEnd(28)} ║`
   )
-
-  return runCommand(sock, m, comando, args)
-})
-
+)
+console.log(
+  chalk.white(
+    `║ 👥 GRUPO : ${nombreGrupo.padEnd(28)} ║`
+  )
+)
+console.log(
+  chalk.yellowBright(
+    `║ 📥 COMANDO: ${(config.PREFIX + comando).padEnd(30)} ║`
+  )
+)
 console.log(chalk.yellowBright('╚══════════════════════════════════════╝\n'))
-Promise.allSettled(tareas)
+
+await runCommand(sock, m, comando, args)
   }
 })
 
