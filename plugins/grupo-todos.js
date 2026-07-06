@@ -8,7 +8,7 @@ function leerDB() {
 }
 function obtenerTag(grupo) {
     const db = leerDB()
-    return db[grupo] || '📢'
+    return db[grupo] || '│🦈'
 }
 
 let handler = {}
