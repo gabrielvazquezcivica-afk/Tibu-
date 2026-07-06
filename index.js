@@ -40,9 +40,19 @@ function iniciarBaneados() {
   }
 }
 function estaBaneado(numero) {
-  if (!cache.baneados) iniciarBaneados()
-  return cache.baneados.includes(String(numero).replace(/[^0-9]/g, ''))
+  try {
+    const lista = JSON.parse(
+      fs.readFileSync(rutaBaneados, 'utf8')
+    )
+
+    return lista.includes(
+      String(numero).replace(/[^0-9]/g, '')
+    )
+  } catch {
+    return false
+  }
 }
+
 iniciarBaneados()
 
 // ─── CONTADORES DE MENSAJES ───
