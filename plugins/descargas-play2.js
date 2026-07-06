@@ -51,32 +51,23 @@ Ejemplo:
         const yt = json.data
 
         const info =
-`┌──────────────────────┐
+`┌─────────────┐
 │ 🎬 PLAY2
-├──────────────────────┤
+├──────────────┤
 │ 🎵 ${yt.title}
-│
 │ 👤 ${yt.author}
-│
 │ ⏱️ ${video.timestamp}
-│
 │ 👀 ${video.views.toLocaleString()} vistas
-└──────────────────────┘
-
-> 🦈 Tibu Bot`
+└──────────────────────┘`
 
         await sock.sendMessage(from, {
-            image: { url: video.thumbnail },
-            caption: info
-        }, { quoted: m })
-
-        await sock.sendMessage(from, {
-            video: {
-                url: yt.download
-            },
-            mimetype: 'video/mp4',
-            fileName: `${yt.title}.mp4`
-        }, { quoted: m })
+    video: {
+        url: yt.download
+    },
+    mimetype: 'video/mp4',
+    fileName: `${yt.title}.mp4`,
+    caption: info
+}, { quoted: m })
 
         await sock.sendMessage(from, {
             react: { text: '✅', key: m.key }
