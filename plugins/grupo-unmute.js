@@ -113,8 +113,7 @@ const senderNum = limpiarNumero(sender)
 
     guardarDB(db)
 
-    // quitar cache inmediata
-    global.silenciadosCache?.delete(numero)
+global.actualizarCache?.()
 
     await sock.sendMessage(from, {
         react: { text: '🔊', key: m.key }
