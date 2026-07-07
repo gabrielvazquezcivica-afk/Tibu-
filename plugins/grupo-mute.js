@@ -17,6 +17,10 @@ function guardarDB(db) {
     fs.writeFileSync(ruta, JSON.stringify(db, null, 2))
 }
 
+function limpiarNumero(jid = '') {
+    return String(jid).replace(/[^0-9]/g, '')
+}
+
 let handler = {}
 
 handler.run = async (sock, m) => {
@@ -63,8 +67,10 @@ handler.run = async (sock, m) => {
     }
 
     let target =
-        m.message?.extendedTextMessage?.contextInfo?.participant ||
-        m.message?.extendedTextMessage?.contextInfo?.mentionedJid?.[0]
+    m.message?.extendedTextMessage?.contextInfo?.participant ||
+    m.message?.extendedTextMessage?.contextInfo?.mentionedJid?.[0]
+
+const numero = limpiarNumero(target)
 
     if (!target) {
         await sock.sendMessage(from, {
@@ -80,7 +86,7 @@ handler.run = async (sock, m) => {
 
     if (!db[from]) db[from] = []
 
-    if (db[from].includes(target)) {
+    if (db[from].includes(numero)) {
         await sock.sendMessage(from, {
             react: { text: '⚠️', key: m.key }
         })
@@ -94,7 +100,7 @@ handler.run = async (sock, m) => {
         }, { quoted: m })
     }
 
-    db[from].push(target)
+    db[from].push(numero)
     guardarDB(db)
 
     await sock.sendMessage(from, {
