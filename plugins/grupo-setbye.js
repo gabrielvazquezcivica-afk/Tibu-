@@ -40,7 +40,14 @@ handler.run = async (sock, m, args) => {
     }, { quoted: m })
   }
 
-  const texto = args.join(' ')
+  const body =
+  m.message?.conversation ||
+  m.message?.extendedTextMessage?.text ||
+  ''
+
+const texto = body
+  .replace(/^\.?setwelcome\s*/i, '')
+  .trim()
 
   if (!texto) {
     return sock.sendMessage(from, {
