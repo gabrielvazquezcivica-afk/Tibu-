@@ -17,6 +17,10 @@ function guardarDB(db) {
     fs.writeFileSync(ruta, JSON.stringify(db, null, 2))
 }
 
+function limpiarNumero(jid = '') {
+    return String(jid).replace(/[^0-9]/g, '')
+}
+
 function limpiarJid(jid = '') {
     return String(jid)
         .replace(/:\d+@/, '@')
