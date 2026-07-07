@@ -27,9 +27,10 @@ let handler = {}
 
 handler.run = async (sock, m) => {
     const from = m.key.remoteJid
-    const sender = limpiarJid(
-        m.key.participant || m.key.remoteJid
-    )
+    const sender =
+    m.key.participant || m.key.remoteJid
+
+const senderNum = limpiarNumero(sender)
 
     if (!from.endsWith('@g.us')) {
         await sock.sendMessage(from, {
@@ -53,9 +54,8 @@ handler.run = async (sock, m) => {
     const participantes = metadata.participants || []
 
     const adminInfo = participantes.find(
-        p =>
-            limpiarJid(p.id || p.jid) === sender
-    )
+    p => limpiarNumero(p.id || p.jid) === senderNum
+)
 
     const isAdmin =
         adminInfo?.admin === 'admin' ||
@@ -85,15 +85,13 @@ handler.run = async (sock, m) => {
         }, { quoted: m })
     }
 
-    target = limpiarJid(target)
+    const numero = limpiarNumero(target)
 
     const db = leerDB()
 
     if (!db[from]) db[from] = []
 
-    const existe = db[from].some(
-        x => limpiarJid(x) === target
-    )
+    const existe = db[from].includes(numero)
 
     if (!existe) {
         await sock.sendMessage(from, {
@@ -106,13 +104,13 @@ handler.run = async (sock, m) => {
     }
 
     db[from] = db[from].filter(
-        x => limpiarJid(x) !== target
-    )
+    x => x !== numero
+)
 
     guardarDB(db)
 
     // quitar cache inmediata
-    global.silenciadosCache?.delete(target)
+    global.silenciadosCache?.delete(numero)
 
     await sock.sendMessage(from, {
         react: { text: '🔊', key: m.key }
