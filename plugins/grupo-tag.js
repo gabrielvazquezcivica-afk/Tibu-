@@ -57,18 +57,24 @@ handler.run = async (sock, m, args) => {
 
     const mentions = participantes.map(p => p.id || p.jid)
 
-    const text = args.join(' ').trim()
+    const body =
+    m.message?.conversation ||
+    m.message?.extendedTextMessage?.text ||
+    ''
+
+const text = body
+    .replace(/^\.?n\s*/i, '')
 
     const quoted =
         m.message?.extendedTextMessage?.contextInfo?.quotedMessage
 
     // PRIORIDAD: si escribió texto después de .n, manda eso
-    if (text) {
-        return sock.sendMessage(from, {
-            text: text + footer(),
-            mentions
-        }, { quoted: m })
-    }
+    if (text.trim()) {
+    return sock.sendMessage(from, {
+        text: text + footer(),
+        mentions
+    }, { quoted: m })
+}
 
     // Si NO escribió texto, usar mensaje respondido
     if (quoted) {
