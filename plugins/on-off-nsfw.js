@@ -82,7 +82,7 @@ handler.run = async (sock, m, args) => {
     if (!['on', 'off'].includes(opcion)) {
         return sock.sendMessage(from, {
     text:
-`🔞 *CONFIGURACIÓN NSFW*`
+`🔞 *CONFIGURACIÓN NSFW*
 
 > .nsfw on
 > .nsfw off
