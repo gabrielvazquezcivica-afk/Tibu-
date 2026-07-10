@@ -12,36 +12,34 @@ handler.run = async (sock, m) => {
 `BEGIN:VCARD
 VERSION:3.0
 FN:👑 Owner ${config.BOT_NAME}
-ORG:${config.BOT_NAME};
 TEL;type=CELL;type=VOICE;waid=${numero}:${numero}
 END:VCARD`
 
+    // Contacto
     await sock.sendMessage(from, {
         contacts: {
-            displayName: `👑 Owner ${config.BOT_NAME}`,
-            contacts: [{
-                vcard
-            }]
-        },
-        caption:
-`╭━━━〔 👑 OWNER 👑 〕━━━⬣
-┃
-┃ 📞 Contacto enviado
-┃ 💬 Toca la tarjeta para guardar
-┃ 🔗 O abre el chat directo abajo
-┃
-╰━━━━━━━━━━━━━━━━━━⬣
+            displayName: '👑 Owner',
+            contacts: [{ vcard }]
+        }
+    }, { quoted: m })
 
-https://wa.me/${numero}
+    // Mensaje con enlace
+    await sock.sendMessage(from, {
+        text:
+`╭━━━〔 👑 OWNER 👑 〕━━━⬣
+┃ 📞 Contacto enviado
+┃
+┃ 🔗 Chat directo:
+┃ https://wa.me/${numero}
+╰━━━━━━━━━━━━━━━━━━⬣
 
 > ${config.BOT_NAME}`,
         contextInfo: {
             externalAdReply: {
                 title: '👑 CONTACTAR OWNER',
-                body: 'Toca aquí para abrir el chat',
+                body: 'Abrir chat del owner',
                 sourceUrl: `https://wa.me/${numero}`,
                 mediaType: 1,
-                renderLargerThumbnail: true,
                 showAdAttribution: false
             }
         }
@@ -50,7 +48,7 @@ https://wa.me/${numero}
 
 handler.command = ['owner', 'creador']
 handler.help = ['owner']
-handler.tags = ['informacion']
+handler.tags = ['info']
 handler.menu = true
 
 export default handler
