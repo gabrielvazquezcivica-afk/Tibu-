@@ -27,8 +27,22 @@ function fancy(texto) {
         .join('')
 }
 
+function fancyTag(texto) {
+    const map = {
+        A:'𝑨',B:'𝑩',C:'𝑪',D:'𝑫',E:'𝑬',F:'𝑭',
+        G:'𝑮',H:'𝑯',I:'𝑰',J:'𝑱',K:'𝑲',L:'𝑳',
+        M:'𝑴',N:'𝑵',O:'𝑶',P:'𝑷',Q:'𝑸',R:'𝑹',
+        S:'𝑺',T:'𝑻',U:'𝑼',V:'𝑽',W:'𝑾',X:'𝑿',
+        Y:'𝒀',Z:'𝒁'
+    }
+
+    return [...texto]
+        .map(x => map[x] || x)
+        .join('')
+}
+
 function centrarTitulo(icono, tag) {
-    return `ㅤㅤㅤㅤ${icono} ${fancy(tag.toUpperCase())}`
+    return `ㅤㅤㅤㅤ${icono} ${fancyTag(tag.toUpperCase())}`
 }
 
 let handler = {}
@@ -127,7 +141,7 @@ const comando = partes.shift()
 const params = partes.join(' ')
 
 texto += `
-│ ${icono} ${config.PREFIX}${fancy(comando)}${params ? ' ' + params : ''}`
+│ ${icono} ${config.PREFIX}${fancyCmd(comando)}${params ? ' ' + params : ''}`
     })
 
     texto += `
