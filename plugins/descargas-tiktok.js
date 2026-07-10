@@ -13,39 +13,36 @@ async function tiktokScraper(url) {
             `https://api.evogb.org/dl/tiktok?url=${encodeURIComponent(url)}&key=${decodedKey}`
         )
 
-        if (!data.status) {
+        if (!data?.status) {
             return { status: false }
         }
 
         return {
             status: true,
-            title: data.data.title,
-            author: data.data.author.nickname,
-            user: data.data.author.unique_id,
-            duration: data.data.duration,
-            likes: data.data.stats.likes,
-            shares: data.data.stats.shares,
-            comments: data.data.stats.comments || 0,
-            views: data.data.stats.views || 0,
-            download: data.data.dl
+            title: data.data?.title || 'Sin título',
+            author: data.data?.author?.nickname || 'Desconocido',
+            user: data.data?.author?.unique_id || 'Desconocido',
+            duration: data.data?.duration || 'Desconocido',
+            likes: data.data?.stats?.likes || 0,
+            comments: data.data?.stats?.comments || 0,
+            shares: data.data?.stats?.shares || 0,
+            views: data.data?.stats?.views || 0,
+            download: data.data?.dl
         }
 
     } catch (e) {
-        console.log('TT ERROR:', e)
+        console.log('TT SCRAPER ERROR:', e)
         return { status: false }
     }
 }
 
 let handler = {}
 
-handler.run = async ({
-    sock,
-    m,
-    from,
-    args
-}) => {
+handler.run = async (sock, m, args) => {
 
-    let query = args.join(' ').trim()
+    const from = m.key.remoteJid
+
+    let query = (args || []).join(' ').trim()
 
     // Responder a mensaje con link
     if (!query) {
@@ -61,6 +58,14 @@ handler.run = async ({
     }
 
     if (!query) {
+
+        await sock.sendMessage(from, {
+            react: {
+                text: '🎵',
+                key: m.key
+            }
+        })
+
         return sock.sendMessage(from, {
             text:
 `🎵 *TIKTOK DOWNLOADER*
@@ -83,9 +88,69 @@ handler.run = async ({
         }
     })
 
-    const res = await tiktokScraper(query)
+    try {
 
-    if (!res.status) {
+        const res = await tiktokScraper(query)
+
+        if (!res.status || !res.download) {
+
+            await sock.sendMessage(from, {
+                react: {
+                    text: '❌',
+                    key: m.key
+                }
+            })
+
+            return sock.sendMessage(from, {
+                text:
+'`❌ No pude descargar el TikTok`'
+            }, { quoted: m })
+        }
+
+        const caption =
+`╭──────────────⬣
+│ 𝐓𝐈𝐁𝐔 𝐓𝐈𝐊𝐓𝐎𝐊 🎵
+├──────────────
+│ 📝 ${res.title}
+│
+│ 👤 ${res.author}
+│ 🆔 @${res.user}
+│
+│ ⏱ ${res.duration}
+│
+│ 👁 ${Number(res.views).toLocaleString()}
+│
+│ ❤️ ${Number(res.likes).toLocaleString()}
+│
+│ 💬 ${Number(res.comments).toLocaleString()}
+│
+│ 🔄 ${Number(res.shares).toLocaleString()}
+│
+│ 📥 Descargando...
+╰──────────────⬣
+> ${config.BOT_NAME}`
+
+        await sock.sendMessage(from, {
+            video: {
+                url: res.download
+            },
+            mimetype: 'video/mp4',
+            fileName: 'tibu-tiktok.mp4',
+            caption
+        }, {
+            quoted: m
+        })
+
+        await sock.sendMessage(from, {
+            react: {
+                text: '✅',
+                key: m.key
+            }
+        })
+
+    } catch (e) {
+
+        console.log('TT ERROR:', e)
 
         await sock.sendMessage(from, {
             react: {
@@ -94,61 +159,11 @@ handler.run = async ({
             }
         })
 
-        return sock.sendMessage(from, {
+        await sock.sendMessage(from, {
             text:
-`❌ No pude descargar el TikTok.
-
-> Verifica que el enlace sea válido.
-
-> ${config.BOT_NAME}`
+'`❌ Error al descargar el TikTok`'
         }, { quoted: m })
     }
-
-    const info =
-`╭━━━〔 🎵 TIKTOK 〕━━⬣
-┃
-┃ 📝 Título:
-┃ ${res.title?.slice(0, 100) || 'Sin título'}
-┃
-┃ 👤 Autor:
-┃ ${res.author} (@${res.user})
-┃
-┃ ⏱️ Duración:
-┃ ${res.duration}
-┃
-┃ 👀 Reproducciones:
-┃ ${Number(res.views).toLocaleString()}
-┃
-┃ ❤️ Likes:
-┃ ${Number(res.likes).toLocaleString()}
-┃
-┃ 💬 Comentarios:
-┃ ${Number(res.comments).toLocaleString()}
-┃
-┃ 🔄 Compartidos:
-┃ ${Number(res.shares).toLocaleString()}
-┃
-╰━━━━━━━━━━━━━━⬣
-
-> ${config.BOT_NAME}`
-
-    await sock.sendMessage(from, {
-        video: {
-            url: res.download
-        },
-        mimetype: 'video/mp4',
-        fileName: 'tibu-tiktok.mp4',
-        caption: info
-    }, {
-        quoted: m
-    })
-
-    await sock.sendMessage(from, {
-        react: {
-            text: '✅',
-            key: m.key
-        }
-    })
 }
 
 handler.command = ['tt', 'tiktok']
