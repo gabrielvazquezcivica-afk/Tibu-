@@ -15,16 +15,11 @@ function obtenerSaludo() {
 
 function fancy(texto) {
     const map = {
-        a:'𝑨',b:'𝑩',c:'𝑪',d:'𝑫',e:'𝑬',f:'𝑭',
-        g:'𝑮',h:'𝑯',i:'𝑰',j:'𝑱',k:'𝑲',l:'𝑳',
-        m:'𝑴',n:'𝑵',o:'𝑶',p:'𝑷',q:'𝑸',r:'𝑹',
-        s:'𝑺',t:'𝑻',u:'𝑼',v:'𝑽',w:'𝑾',x:'𝑿',
-        y:'𝒀',z:'𝒁',
-        A:'𝑨',B:'𝑩',C:'𝑪',D:'𝑫',E:'𝑬',F:'𝑭',
-        G:'𝑮',H:'𝑯',I:'𝑰',J:'𝑱',K:'𝑲',L:'𝑳',
-        M:'𝑴',N:'𝑵',O:'𝑶',P:'𝑷',Q:'𝑸',R:'𝑹',
-        S:'𝑺',T:'𝑻',U:'𝑼',V:'𝑽',W:'𝑾',X:'𝑿',
-        Y:'𝒀',Z:'𝒁'
+        a:'𝐚',b:'𝐛',c:'𝐜',d:'𝐝',e:'𝐞',f:'𝐟',
+        g:'𝐠',h:'𝐡',i:'𝐢',j:'𝐣',k:'𝐤',l:'𝐥',
+        m:'𝐦',n:'𝐧',o:'𝐨',p:'𝐩',q:'𝐪',r:'𝐫',
+        s:'𝐬',t:'𝐭',u:'𝐮',v:'𝐯',w:'𝐰',x:'𝐱',
+        y:'𝐲',z:'𝐳'
     }
 
     return [...texto]
@@ -128,10 +123,10 @@ ${centrarTitulo(icono, tag)}
     grupos[tag].forEach(cmd => {
 
         const partes = cmd.split(' ')
-        const comando = partes.shift()
-        const params = partes.join(' ')
+const comando = partes.shift()
+const params = partes.join(' ')
 
-        texto += `
+texto += `
 │ ${icono} ${config.PREFIX}${fancy(comando)}${params ? ' ' + params : ''}`
     })
 
