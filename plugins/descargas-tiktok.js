@@ -3,8 +3,15 @@ import config from '../config.js'
 
 let handler = {}
 
-handler.run = async (sock, m, args, command) => {
+handler.run = async (sock, m, args) => {
     const from = m.key.remoteJid
+
+    const cmd =
+        (m.body || '')
+        .trim()
+        .split(/\s+/)[0]
+        .replace(/^\./, '')
+        .toLowerCase()
 
     let query = args.join(' ').trim()
 
@@ -33,10 +40,7 @@ handler.run = async (sock, m, args, command) => {
     }
 
     await sock.sendMessage(from, {
-        react: {
-            text: '⏳',
-            key: m.key
-        }
+        react: { text: '⏳', key: m.key }
     })
 
     try {
@@ -50,34 +54,28 @@ handler.run = async (sock, m, args, command) => {
 
         let endpoint = ''
 
-        if (/^(ig|instagram)$/i.test(command)) {
-            endpoint =
-`https://api.evogb.org/dl/instagram?url=${encodeURIComponent(query)}&key=${key}`
+        if (/^(ig|instagram)$/i.test(cmd)) {
+            endpoint = `https://api.evogb.org/dl/instagram?url=${encodeURIComponent(query)}&key=${key}`
+        } else if (/^(fb|facebook)$/i.test(cmd)) {
+            endpoint = `https://api.evogb.org/dl/facebook?url=${encodeURIComponent(query)}&key=${key}`
+        } else if (/^(tk|tiktok)$/i.test(cmd)) {
+            endpoint = `https://api.evogb.org/dl/tiktok?url=${encodeURIComponent(query)}&key=${key}`
+        } else if (/^(tw|twitter|twdl)$/i.test(cmd)) {
+            endpoint = `https://api.evogb.org/dl/twitter?url=${encodeURIComponent(query)}&key=${key}`
+        } else if (/^(tera|terabox)$/i.test(cmd)) {
+            endpoint = `https://api.evogb.org/dl/terabox?url=${encodeURIComponent(query)}&key=${key}`
         }
 
-        else if (/^(fb|facebook)$/i.test(command)) {
-            endpoint =
-`https://api.evogb.org/dl/facebook?url=${encodeURIComponent(query)}&key=${key}`
+        if (!endpoint) {
+            throw new Error('Comando no reconocido')
         }
 
-        else if (/^(tk|tiktok)$/i.test(command)) {
-            endpoint =
-`https://api.evogb.org/dl/tiktok?url=${encodeURIComponent(query)}&key=${key}`
-        }
-
-        else if (/^(tw|twitter|twdl)$/i.test(command)) {
-            endpoint =
-`https://api.evogb.org/dl/twitter?url=${encodeURIComponent(query)}&key=${key}`
-        }
-
-        else if (/^(tera|terabox)$/i.test(command)) {
-            endpoint =
-`https://api.evogb.org/dl/terabox?url=${encodeURIComponent(query)}&key=${key}`
-        }
+        console.log('ENDPOINT:', endpoint)
 
         const { data } = await axios.get(endpoint)
 
-        if (!data.status) {
+        console.log(data)
+
 
             await sock.sendMessage(from, {
                 react: {
