@@ -41,7 +41,7 @@ handler.run = async (sock, m, args, { commands }) => {
         herramientas: '🌅',
         diversión: '🐚',
         owner: '🚢',
-        nsfw: '🥵'
+        nsfw: '🥵',
         stickers: '☀️'
     }
 
