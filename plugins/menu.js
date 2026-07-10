@@ -141,7 +141,7 @@ const comando = partes.shift()
 const params = partes.join(' ')
 
 texto += `
-│ ${icono} ${config.PREFIX}${fancyCmd(comando)}${params ? ' ' + params : ''}`
+│ ${icono} ${config.PREFIX}${fancy(comando)}${params ? ' ' + params : ''}`
     })
 
     texto += `
