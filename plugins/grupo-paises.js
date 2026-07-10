@@ -1,4 +1,3 @@
-import fetch from 'node-fetch'
 import config from '../config.js'
 
 let handler = {}
@@ -31,7 +30,9 @@ handler.run = async (sock, m, args) => {
         }, { quoted: m })
     }
 
-    const texto = args.join(' ') || '📢 Llamado general para toda la tripulación'
+    const texto =
+        args.join(' ') ||
+        '📢 Llamado general para toda la tripulación'
 
     const banderas = {
         '52': '🇲🇽',
@@ -42,23 +43,35 @@ handler.run = async (sock, m, args) => {
         '58': '🇻🇪',
         '55': '🇧🇷',
         '34': '🇪🇸',
-        '1': '🇺🇸'
+        '1': '🇺🇸',
+        '502': '🇬🇹',
+        '503': '🇸🇻',
+        '504': '🇭🇳',
+        '505': '🇳🇮',
+        '506': '🇨🇷',
+        '507': '🇵🇦',
+        '593': '🇪🇨',
+        '595': '🇵🇾',
+        '598': '🇺🇾',
+        '591': '🇧🇴'
     }
 
     function obtenerBandera(id) {
         const num = id.split('@')[0]
 
-        for (const prefijo of Object.keys(banderas).sort((a, b) => b.length - a.length)) {
+        for (const prefijo of Object.keys(banderas)
+            .sort((a, b) => b.length - a.length)) {
+
             if (num.startsWith(prefijo)) {
                 return `${banderas[prefijo]} +${prefijo}`
             }
         }
 
-        return '🌎 Desconocido'
+        return '🌎'
     }
 
     let mensaje =
-`╭━━━〔 🌊 TIBU PAÍSES 🌊 〕━━⬣
+`╭━━━〔 🌊 LISTA DE PAÍSES 🌊 〕━━⬣
 ┃
 ┃ 🦈 Grupo: ${metadata.subject}
 ┃ 👥 Miembros: ${participantes.length}
@@ -66,19 +79,20 @@ handler.run = async (sock, m, args) => {
 ┃ 📢 Mensaje:
 ┃ ${texto}
 ┃
-┣━━━━━━━━━━━━━━⬣
-┃ 🌎 Lista de países
+┣━━━━━━━━━━━━━━━━━━⬣
+┃ 🌎 Tripulación
 ┃`
 
     for (const user of participantes) {
-        const info = obtenerBandera(user.id || user.jid)
+        const jid = user.id || user.jid
+        const info = obtenerBandera(jid)
 
-        mensaje += `\n┃ ${info} @${(user.id || user.jid).split('@')[0]}`
+        mensaje += `\n┃ ${info} @${jid.split('@')[0]}`
     }
 
     mensaje += `
 
-╰━━━━━━━━━━━━━━⬣
+╰━━━━━━━━━━━━━━━━━━⬣
 
 > ${config.BOT_NAME}`
 
@@ -104,19 +118,19 @@ END:VCARD`
     }
 
     await sock.sendMessage(from, {
-        image: {
-            url: 'https://i.imgur.com/JP2jKzD.jpeg'
-        },
-        caption: mensaje,
-        mentions: participantes.map(p => p.id || p.jid)
+        text: mensaje,
+        mentions: participantes.map(
+            p => p.id || p.jid
+        )
     }, {
         quoted: fkontak
     })
 }
 
-handler.command = ['paises', 'pais', 'banderas']
-handler.help = ['paises <mensaje>']
+handler.command = ['pais', 'paises', 'banderas']
+handler.help = ['pais <mensaje>']
 handler.tags = ['grupo']
+handler.group = true
 handler.menu = true
 
 export default handler
