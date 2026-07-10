@@ -1,11 +1,15 @@
 import config from '../config.js'
+import fetch from 'node-fetch'
 
 let handler = {}
 
 handler.run = async (sock, m) => {
     const from = m.key.remoteJid
 
-    const numero = String(config.owner[0]).replace(/[^0-9]/g, '')
+    const numero = String(config.owner[0])
+        .replace(/[^0-9]/g, '')
+
+    const ownerJid = `${numero}@s.whatsapp.net`
 
     const vcard = `BEGIN:VCARD
 VERSION:3.0
@@ -14,46 +18,64 @@ ORG:${config.BOT_NAME};
 TEL;type=CELL;type=VOICE;waid=${numero}:${numero}
 END:VCARD`
 
-    const fotoOwner = 'https://i.imgur.com/JP2jKzD.jpeg' // cambia por tu foto
+    let thumbnail = null
 
+    try {
+        const fotoBot = await sock.profilePictureUrl(
+            sock.user.id,
+            'image'
+        )
+
+        const res = await fetch(fotoBot)
+        thumbnail = Buffer.from(
+            await res.arrayBuffer()
+        )
+    } catch {}
+
+    // 📞 Contacto
     await sock.sendMessage(from, {
-        image: {
-            url: fotoOwner
-        },
-        caption:
-`╭━━━〔 👑 OWNER OFICIAL 〕━━⬣
-┃
-┃ 🤖 Bot: ${config.BOT_NAME}
-┃ 👑 Owner: @${numero}
-┃ 📞 Número: ${numero}
-┃
-┃ 💬 Pulsa la tarjeta
-┃ para guardar contacto
-┃
-╰━━━━━━━━━━━━━━━━⬣`,
-        mentions: [`${numero}@s.whatsapp.net`],
-
         contacts: {
             displayName: 'OWNER',
-            contacts: [{
-                vcard
-            }]
-        },
+            contacts: [
+                {
+                    vcard
+                }
+            ]
+        }
+    }, { quoted: m })
+
+    // 👑 Mensaje principal
+    await sock.sendMessage(from, {
+        text:
+`╔══════════════════════╗
+║      👑 OWNER 👑
+╠══════════════════════╣
+║ 🤖 Bot:
+║ ${config.BOT_NAME}
+║
+║ 👤 Owner:
+║ @${numero}
+║
+║ 📞 Número:
+║ ${numero}
+║
+║ 💬 Pulsa la tarjeta
+║ para guardar contacto
+╚══════════════════════╝`,
+        mentions: [ownerJid],
 
         contextInfo: {
             externalAdReply: {
                 title: '👑 CONTACTAR OWNER',
-                body: 'Toca aquí para abrir el chat',
+                body: config.BOT_NAME,
+                sourceUrl: `https://wa.me/${numero}`,
                 mediaType: 1,
                 renderLargerThumbnail: true,
-                thumbnailUrl: fotoOwner,
-                sourceUrl: `https://wa.me/${numero}`,
-                showAdAttribution: false
+                showAdAttribution: false,
+                thumbnail
             }
         }
-    }, {
-        quoted: m
-    })
+    }, { quoted: m })
 }
 
 handler.command = ['owner', 'creador']
