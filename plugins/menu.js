@@ -41,6 +41,7 @@ handler.run = async (sock, m, args, { commands }) => {
         herramientas: '🌅',
         diversión: '🐚',
         owner: '🚢',
+        nsfw: '🥵'
         stickers: '☀️'
     }
 
@@ -53,7 +54,8 @@ handler.run = async (sock, m, args, { commands }) => {
         'herramientas',
         'diversión',
         'owner',
-        'stickers'
+        'stickers',
+        'nsfw'
     ]
 
     const grupos = {}
