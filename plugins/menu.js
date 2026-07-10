@@ -13,6 +13,29 @@ function obtenerSaludo() {
     return '🌙 ¡Buenas noches'
 }
 
+function fancy(texto) {
+    const map = {
+        a:'𝑨',b:'𝑩',c:'𝑪',d:'𝑫',e:'𝑬',f:'𝑭',
+        g:'𝑮',h:'𝑯',i:'𝑰',j:'𝑱',k:'𝑲',l:'𝑳',
+        m:'𝑴',n:'𝑵',o:'𝑶',p:'𝑷',q:'𝑸',r:'𝑹',
+        s:'𝑺',t:'𝑻',u:'𝑼',v:'𝑽',w:'𝑾',x:'𝑿',
+        y:'𝒀',z:'𝒁',
+        A:'𝑨',B:'𝑩',C:'𝑪',D:'𝑫',E:'𝑬',F:'𝑭',
+        G:'𝑮',H:'𝑯',I:'𝑰',J:'𝑱',K:'𝑲',L:'𝑳',
+        M:'𝑴',N:'𝑵',O:'𝑶',P:'𝑷',Q:'𝑸',R:'𝑹',
+        S:'𝑺',T:'𝑻',U:'𝑼',V:'𝑽',W:'𝑾',X:'𝑿',
+        Y:'𝒀',Z:'𝒁'
+    }
+
+    return [...texto]
+        .map(x => map[x] || x)
+        .join('')
+}
+
+function centrarTitulo(icono, tag) {
+    return `ㅤㅤㅤㅤ${icono} ${fancy(tag.toUpperCase())}`
+}
+
 let handler = {}
 
 handler.run = async (sock, m, args, { commands }) => {
@@ -99,7 +122,10 @@ handler.run = async (sock, m, args, { commands }) => {
 
         texto += `
 
-┌─ ${icono} ${tag.toUpperCase()} ─┐`
+texto += `
+
+${centrarTitulo(icono, tag)}
+┌───────────────────────────┐`
 
         function fancy(texto) {
     const map = {
@@ -122,7 +148,7 @@ handler.run = async (sock, m, args, { commands }) => {
 
 grupos[tag].forEach(cmd => {
     texto += `
-│ ${icono} ${fancy(config.PREFIX + cmd)}`
+│ ${icono} ${config.PREFIX}${fancy(cmd)}`
 })
 
         texto += `
