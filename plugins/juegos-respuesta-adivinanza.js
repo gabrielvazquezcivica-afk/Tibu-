@@ -82,7 +82,7 @@ Ejemplo:
 }
 
 handler.command = ['respuesta']
-handler.help = false
+handler.help = ['respuesta <texto>']
 handler.tags = false
 handler.menu = false
 
