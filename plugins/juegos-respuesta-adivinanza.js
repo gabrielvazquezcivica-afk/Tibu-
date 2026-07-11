@@ -82,8 +82,8 @@ Ejemplo:
 }
 
 handler.command = ['respuesta']
-handler.help = ['respuesta <texto>']
-handler.tags = ['diversión']
+handler.help = false
+handler.tags = false
 handler.menu = false
 
 export default handler
