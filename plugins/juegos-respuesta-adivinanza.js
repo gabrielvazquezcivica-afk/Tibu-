@@ -1,5 +1,5 @@
 import config from '../config.js'
-import { partidas } from './adivinanza.js'
+import { partidas } from './juegos-adivinanza.js'
 
 let handler = {}
 
