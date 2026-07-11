@@ -95,10 +95,11 @@ handler.run = async (sock, m, args, { commands }) => {
 
     for (const plugin of handlers) {
         if (
-            !plugin ||
-            !Array.isArray(plugin.help) ||
-            !Array.isArray(plugin.tags)
-        ) continue
+    !plugin ||
+    plugin.menu === false ||
+    !Array.isArray(plugin.help) ||
+    !Array.isArray(plugin.tags)
+) continue
 
         const tag = plugin.tags[0]?.toLowerCase() || 'otros'
 
