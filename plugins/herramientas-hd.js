@@ -177,6 +177,7 @@ console.log('CATBOX URL GENERADA:', imageUrl)
     }, {
         quoted: m
     })
+ }
 }
 
 handler.command = ['hd', 'upscale', 'remini']
