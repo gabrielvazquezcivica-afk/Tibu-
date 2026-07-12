@@ -50,8 +50,17 @@ handler.run = async (sock, m) => {
             quoted.stickerMessage
         )
 
-        const webp = `./tmp/${Date.now()}.webp`
-        const mp4 = `./tmp/${Date.now()}.mp4`
+        // Crear carpeta tmp automáticamente
+        if (!fs.existsSync('./tmp')) {
+            fs.mkdirSync('./tmp', {
+                recursive: true
+            })
+        }
+
+        const id = Date.now()
+
+        const webp = `./tmp/${id}.webp`
+        const mp4 = `./tmp/${id}.mp4`
 
         fs.writeFileSync(webp, buffer)
 
@@ -64,16 +73,39 @@ handler.run = async (sock, m) => {
                 } catch {}
 
                 if (err) {
+
+                    console.log(
+                        'FFMPEG ERROR:',
+                        err
+                    )
+
                     return sock.sendMessage(from, {
-                        text: '`❌ Error al convertir el sticker`'
+                        text:
+'`❌ Error al convertir el sticker`'
                     }, { quoted: m })
                 }
 
-                await sock.sendMessage(from, {
-                    video: fs.readFileSync(mp4),
-                    gifPlayback: true,
-                    caption: '`✅ Sticker convertido a GIF/Video`'
-                }, { quoted: m })
+                try {
+
+                    await sock.sendMessage(from, {
+                        video: fs.readFileSync(mp4),
+                        gifPlayback: true,
+                        caption:
+'`✅ Sticker convertido a GIF/Video`'
+                    }, { quoted: m })
+
+                } catch (e) {
+
+                    console.log(
+                        'SEND VIDEO ERROR:',
+                        e
+                    )
+
+                    await sock.sendMessage(from, {
+                        text:
+'`❌ Error al enviar el video`'
+                    }, { quoted: m })
+                }
 
                 try {
                     fs.unlinkSync(mp4)
@@ -83,10 +115,14 @@ handler.run = async (sock, m) => {
 
     } catch (e) {
 
-        console.log('TOGIF ERROR:', e)
+        console.log(
+            'TOGIF ERROR:',
+            e
+        )
 
         await sock.sendMessage(from, {
-            text: '`❌ Error al convertir el sticker`'
+            text:
+'`❌ Error al convertir el sticker`'
         }, { quoted: m })
     }
 }
