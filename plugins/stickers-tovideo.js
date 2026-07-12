@@ -45,11 +45,8 @@ handler.run = async (sock, m) => {
             quoted.stickerMessage
         )
 
-        const tmpWebp =
-            `/tmp/${Date.now()}.webp`
-
-        const tmpMp4 =
-            `/tmp/${Date.now()}.mp4`
+        const tmpWebp = `${process.cwd()}/tmp/${Date.now()}.webp`
+const tmpMp4 = `${process.cwd()}/tmp/${Date.now()}.mp4`
 
         fs.writeFileSync(
             tmpWebp,
