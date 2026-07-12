@@ -1,5 +1,6 @@
 import fs from 'fs'
-import { exec } from 'child_process'
+import axios from 'axios'
+import FormData from 'form-data'
 import { downloadContentFromMessage } from '@whiskeysockets/baileys'
 
 async function descargarSticker(sticker) {
@@ -31,12 +32,6 @@ handler.run = async (sock, m) => {
         }, { quoted: m })
     }
 
-    if (!quoted.stickerMessage.isAnimated) {
-        return sock.sendMessage(from, {
-            text: '`❌ Ese sticker no es animado`'
-        }, { quoted: m })
-    }
-
     try {
 
         await sock.sendMessage(from, {
@@ -50,79 +45,79 @@ handler.run = async (sock, m) => {
             quoted.stickerMessage
         )
 
-        // Crear carpeta tmp automáticamente
-        if (!fs.existsSync('./tmp')) {
-            fs.mkdirSync('./tmp', {
-                recursive: true
-            })
-        }
+        const form = new FormData()
 
-        const id = Date.now()
+        form.append(
+            'new-image',
+            buffer,
+            'sticker.webp'
+        )
 
-        const webp = `./tmp/${id}.webp`
-        const mp4 = `./tmp/${id}.mp4`
-
-        fs.writeFileSync(webp, buffer)
-
-        exec(
-            `ffmpeg -i "${webp}" -movflags faststart -pix_fmt yuv420p "${mp4}" -y`,
-            async (err) => {
-
-                try {
-                    fs.unlinkSync(webp)
-                } catch {}
-
-                if (err) {
-
-                    console.log(
-                        'FFMPEG ERROR:',
-                        err
-                    )
-
-                    return sock.sendMessage(from, {
-                        text:
-'`❌ Error al convertir el sticker`'
-                    }, { quoted: m })
-                }
-
-                try {
-
-                    await sock.sendMessage(from, {
-                        video: fs.readFileSync(mp4),
-                        gifPlayback: true,
-                        caption:
-'`✅ Sticker convertido a GIF/Video`'
-                    }, { quoted: m })
-
-                } catch (e) {
-
-                    console.log(
-                        'SEND VIDEO ERROR:',
-                        e
-                    )
-
-                    await sock.sendMessage(from, {
-                        text:
-'`❌ Error al enviar el video`'
-                    }, { quoted: m })
-                }
-
-                try {
-                    fs.unlinkSync(mp4)
-                } catch {}
+        const { data } = await axios.post(
+            'https://s6.ezgif.com/webp-to-mp4',
+            form,
+            {
+                headers: form.getHeaders()
             }
         )
+
+        const file = data.match(
+            /value="([^"]+\.webp)"/
+        )?.[1]
+
+        if (!file) {
+            throw new Error(
+                'No pude procesar el sticker'
+            )
+        }
+
+        const form2 = new FormData()
+
+        form2.append('file', file)
+        form2.append('convert', 'Convert WebP to MP4!')
+
+        const { data: data2 } = await axios.post(
+            'https://ezgif.com/webp-to-mp4/' + file,
+            form2,
+            {
+                headers: form2.getHeaders()
+            }
+        )
+
+        const video =
+            data2.match(
+                /<source src="([^"]+)"/
+            )?.[1]
+
+        if (!video) {
+            throw new Error(
+                'No pude generar el video'
+            )
+        }
+
+        const url = video.startsWith('http')
+            ? video
+            : `https:${video}`
+
+        await sock.sendMessage(from, {
+            video: {
+                url
+            },
+            gifPlayback: true,
+            caption:
+'`✅ Sticker convertido a GIF/Video`'
+        }, { quoted: m })
 
     } catch (e) {
 
         console.log(
             'TOGIF ERROR:',
-            e
+            e.response?.data || e
         )
 
         await sock.sendMessage(from, {
             text:
-'`❌ Error al convertir el sticker`'
+'`❌ No pude convertir ese sticker`'
         }, { quoted: m })
     }
 }
