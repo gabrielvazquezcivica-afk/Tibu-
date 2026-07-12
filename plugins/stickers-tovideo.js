@@ -27,8 +27,13 @@ handler.run = async (sock, m) => {
 
     if (!quoted?.stickerMessage) {
         return sock.sendMessage(from, {
-            text:
-'`🎥 Responde a un sticker animado con .tovideo`'
+            text: '`🎥 Responde a un sticker animado con .tovideo`'
+        }, { quoted: m })
+    }
+
+    if (!quoted.stickerMessage.isAnimated) {
+        return sock.sendMessage(from, {
+            text: '`❌ El sticker debe ser animado`'
         }, { quoted: m })
     }
 
@@ -45,8 +50,21 @@ handler.run = async (sock, m) => {
             quoted.stickerMessage
         )
 
-        const tmpWebp = `${process.cwd()}/tmp/${Date.now()}.webp`
-const tmpMp4 = `${process.cwd()}/tmp/${Date.now()}.mp4`
+        console.log(
+            'BUFFER:',
+            webp.length
+        )
+
+        const id = Date.now()
+
+        const tmpWebp =
+            `${process.cwd()}/tmp/${id}.webp`
+
+        const tmpGif =
+            `${process.cwd()}/tmp/${id}.gif`
+
+        const tmpMp4 =
+            `${process.cwd()}/tmp/${id}.mp4`
 
         fs.writeFileSync(
             tmpWebp,
@@ -56,7 +74,19 @@ const tmpMp4 = `${process.cwd()}/tmp/${Date.now()}.mp4`
         await new Promise((resolve, reject) => {
 
             exec(
-                `ffmpeg -i "${tmpWebp}" -movflags faststart -pix_fmt yuv420p -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" "${tmpMp4}" -y`,
+                `ffmpeg -y -i "${tmpWebp}" "${tmpGif}"`,
+                err => {
+                    if (err) reject(err)
+                    else resolve()
+                }
+            )
+
+        })
+
+        await new Promise((resolve, reject) => {
+
+            exec(
+                `ffmpeg -y -i "${tmpGif}" -movflags faststart -pix_fmt yuv420p -vf "scale=512:-2,fps=15" "${tmpMp4}"`,
                 err => {
                     if (err) reject(err)
                     else resolve()
@@ -75,8 +105,14 @@ const tmpMp4 = `${process.cwd()}/tmp/${Date.now()}.mp4`
 '`✅ Sticker convertido a video`'
         }, { quoted: m })
 
-        fs.unlinkSync(tmpWebp)
-        fs.unlinkSync(tmpMp4)
+        ;[
+            tmpWebp,
+            tmpGif,
+            tmpMp4
+        ].forEach(file => {
+            if (fs.existsSync(file))
+                fs.unlinkSync(file)
+        })
 
     } catch (e) {
 
@@ -92,9 +128,19 @@ const tmpMp4 = `${process.cwd()}/tmp/${Date.now()}.mp4`
     }
 }
 
-handler.command = ['tovideo','mp4']
-handler.help = ['tovideo']
-handler.tags = ['stickers']
+handler.command = [
+    'tovideo',
+    'mp4'
+]
+
+handler.help = [
+    'tovideo'
+]
+
+handler.tags = [
+    'stickers'
+]
+
 handler.menu = true
 
 export default handler
