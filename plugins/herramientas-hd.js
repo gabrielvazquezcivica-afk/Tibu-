@@ -10,7 +10,7 @@ async function descargar(media, tipo) {
     let buffer = Buffer.from([])
 
     for await (const chunk of stream) {
-        buffer = Buffer.concat([buffer, chunk)
+        buffer = Buffer.concat([buffer, chunk])
     }
 
     return buffer
