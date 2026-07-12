@@ -81,6 +81,8 @@ handler.run = async (sock, m) => {
         const imageUrl =
             await uploadToCatbox(buffer)
 
+console.log('CATBOX URL GENERADA:', imageUrl)
+
         const { data } = await axios.get(
             `https://api.lempi.lat/tools/upscale?url=${encodeURIComponent(imageUrl)}&multiplier=4&apikey=lem948`
         )
@@ -126,24 +128,55 @@ handler.run = async (sock, m) => {
 
     } catch (e) {
 
-        console.log('HD ERROR:', e)
+    console.log('━━━━━━━━ HD DEBUG ━━━━━━━━')
 
-        await sock.sendMessage(from, {
-            react: {
-                text: '❌',
-                key: m.key
-            }
-        })
+    console.log(
+        'CATBOX URL:',
+        typeof imageUrl !== 'undefined'
+            ? imageUrl
+            : 'No generada'
+    )
 
-        await sock.sendMessage(from, {
-            text:
+    console.log(
+        'STATUS:',
+        e?.response?.status || 'Sin status'
+    )
+
+    console.log(
+        'DATA:',
+        e?.response?.data || 'Sin data'
+    )
+
+    console.log(
+        'MESSAGE:',
+        e?.message || e
+    )
+
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━')
+
+    await sock.sendMessage(from, {
+        react: {
+            text: '❌',
+            key: m.key
+        }
+    })
+
+    let errorText =
+        e?.response?.data?.mensaje ||
+        e?.response?.data?.message ||
+        e?.message ||
+        'Error desconocido'
+
+    await sock.sendMessage(from, {
+        text:
 `❌ \`Error al mejorar la imagen\`
 
-${e.message || e}
+📌 ${errorText}
 
 > ${config.BOT_NAME}`
-        }, { quoted: m })
-    }
+    }, {
+        quoted: m
+    })
 }
 
 handler.command = ['hd', 'upscale', 'remini']
