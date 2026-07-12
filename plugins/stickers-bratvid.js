@@ -36,7 +36,7 @@ Ejemplo:
             .toString('utf-8')
 
         const url =
-            `https://sylphyy.xyz/tools/brat?text=${encodeURIComponent(text)}&color=Blanco&fondo=Negro&type=Anim&api_key=${apiKey}`
+    `https://sylphyy.xyz/tools/brat?text=${encodeURIComponent(text)}&color=Negro&fondo=Blanco&type=Anim&api_key=${apiKey}`
 
         const { data } = await axios.get(url, {
             responseType: 'arraybuffer'
