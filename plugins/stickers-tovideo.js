@@ -1,11 +1,10 @@
 import fs from 'fs'
-import axios from 'axios'
-import FormData from 'form-data'
+import { exec } from 'child_process'
 import { downloadContentFromMessage } from '@whiskeysockets/baileys'
 
-async function descargarSticker(sticker) {
+async function descargar(media) {
     const stream = await downloadContentFromMessage(
-        sticker,
+        media,
         'sticker'
     )
 
@@ -28,7 +27,8 @@ handler.run = async (sock, m) => {
 
     if (!quoted?.stickerMessage) {
         return sock.sendMessage(from, {
-            text: '`🎞️ Responde a un sticker animado con .togif`'
+            text:
+'`🎥 Responde a un sticker animado con .tovideo`'
         }, { quoted: m })
     }
 
@@ -36,94 +36,67 @@ handler.run = async (sock, m) => {
 
         await sock.sendMessage(from, {
             react: {
-                text: '🎞️',
+                text: '🎬',
                 key: m.key
             }
         })
 
-        const buffer = await descargarSticker(
+        const webp = await descargar(
             quoted.stickerMessage
         )
 
-        const form = new FormData()
+        const tmpWebp =
+            `/tmp/${Date.now()}.webp`
 
-        form.append(
-            'new-image',
-            buffer,
-            'sticker.webp'
+        const tmpMp4 =
+            `/tmp/${Date.now()}.mp4`
+
+        fs.writeFileSync(
+            tmpWebp,
+            webp
         )
 
-        const { data } = await axios.post(
-            'https://s6.ezgif.com/webp-to-mp4',
-            form,
-            {
-                headers: form.getHeaders()
-            }
-        )
+        await new Promise((resolve, reject) => {
 
-        const file = data.match(
-            /value="([^"]+\.webp)"/
-        )?.[1]
-
-        if (!file) {
-            throw new Error(
-                'No pude procesar el sticker'
+            exec(
+                `ffmpeg -i "${tmpWebp}" -movflags faststart -pix_fmt yuv420p -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" "${tmpMp4}" -y`,
+                err => {
+                    if (err) reject(err)
+                    else resolve()
+                }
             )
-        }
 
-        const form2 = new FormData()
-
-        form2.append('file', file)
-        form2.append('convert', 'Convert WebP to MP4!')
-
-        const { data: data2 } = await axios.post(
-            'https://ezgif.com/webp-to-mp4/' + file,
-            form2,
-            {
-                headers: form2.getHeaders()
-            }
-        )
+        })
 
         const video =
-            data2.match(
-                /<source src="([^"]+)"/
-            )?.[1]
-
-        if (!video) {
-            throw new Error(
-                'No pude generar el video'
-            )
-        }
-
-        const url = video.startsWith('http')
-            ? video
-            : `https:${video}`
+            fs.readFileSync(tmpMp4)
 
         await sock.sendMessage(from, {
-            video: {
-                url
-            },
+            video,
             gifPlayback: true,
             caption:
-'`✅ Sticker convertido a GIF/Video`'
+'`✅ Sticker convertido a video`'
         }, { quoted: m })
+
+        fs.unlinkSync(tmpWebp)
+        fs.unlinkSync(tmpMp4)
 
     } catch (e) {
 
         console.log(
-            'TOGIF ERROR:',
-            e.response?.data || e
+            'TOVIDEO ERROR:',
+            e
         )
 
         await sock.sendMessage(from, {
             text:
-'`❌ No pude convertir ese sticker`'
+'`❌ Error al convertir el sticker`'
         }, { quoted: m })
     }
 }
 
-handler.command = ['togif', 'gif']
-handler.help = ['togif']
+handler.command = ['tovideo','mp4']
+handler.help = ['tovideo']
 handler.tags = ['stickers']
 handler.menu = true
 
