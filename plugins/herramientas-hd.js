@@ -1,5 +1,41 @@
 import axios from 'axios'
+import FormData from 'form-data'
+import { downloadContentFromMessage } from '@whiskeysockets/baileys'
 import config from '../config.js'
+
+async function descargar(media, tipo) {
+    const stream = await downloadContentFromMessage(media, tipo)
+
+    let buffer = Buffer.from([])
+
+    for await (const chunk of stream) {
+        buffer = Buffer.concat([buffer, chunk])
+    }
+
+    return buffer
+}
+
+async function uploadToCatbox(buffer) {
+    const form = new FormData()
+
+    form.append('reqtype', 'fileupload')
+    form.append(
+        'fileToUpload',
+        buffer,
+        `tibu_${Date.now()}.jpg`
+    )
+
+    const { data } = await axios.post(
+        'https://catbox.moe/user/api.php',
+        form,
+        {
+            headers: form.getHeaders(),
+            maxBodyLength: Infinity
+        }
+    )
+
+    return data
+}
 
 let handler = {}
 
@@ -12,10 +48,7 @@ handler.run = async (sock, m) => {
     if (!quoted?.imageMessage) {
         return sock.sendMessage(from, {
             text:
-`🖼️ \`Responde a una imagen.\`
-
-Ejemplo:
-.hd
+`🖼️ \`Responde a una imagen con .hd\`
 
 > ${config.BOT_NAME}`
         }, { quoted: m })
@@ -30,36 +63,56 @@ Ejemplo:
             }
         })
 
-        const media = await sock.downloadMediaMessage({
-            message: quoted,
-            key: {
-                remoteJid: from
-            }
-        })
+        await sock.sendMessage(from, {
+            text:
+`🌊 \`Mejorando imagen...\`
 
-        if (!media) {
-            throw new Error('No pude descargar la imagen')
-        }
+⏳ Subiendo a Catbox...
+⏳ Procesando HD x4...
 
-        // Aquí debes usar tu uploader
-        const imageUrl = await uploadToCatbox(media)
+> ${config.BOT_NAME}`
+        }, { quoted: m })
+
+        const buffer = await descargar(
+            quoted.imageMessage,
+            'image'
+        )
+
+        const imageUrl =
+            await uploadToCatbox(buffer)
 
         const { data } = await axios.get(
             `https://api.lempi.lat/tools/upscale?url=${encodeURIComponent(imageUrl)}&multiplier=4&apikey=lem948`
         )
 
         if (!data?.status) {
-            throw new Error(data?.mensaje || 'Error API')
+            throw new Error(
+                data?.mensaje ||
+                'Error de la API'
+            )
+        }
+
+        const resultado =
+            data.result ||
+            data.url ||
+            data.image ||
+            data.data
+
+        if (!resultado) {
+            throw new Error(
+                'No se recibió imagen'
+            )
         }
 
         await sock.sendMessage(from, {
             image: {
-                url: data.result || data.url || data.image
+                url: resultado
             },
             caption:
-`🖼️ *IMAGEN MEJORADA*
+`✨ *IMAGEN MEJORADA*
 
-✨ Escala: x4
+🖼️ Escala: x4
+⚡ Calidad optimizada
 
 > ${config.BOT_NAME}`
         }, { quoted: m })
@@ -73,7 +126,7 @@ Ejemplo:
 
     } catch (e) {
 
-        console.log('UPSCALE ERROR:', e)
+        console.log('HD ERROR:', e)
 
         await sock.sendMessage(from, {
             react: {
@@ -84,7 +137,9 @@ Ejemplo:
 
         await sock.sendMessage(from, {
             text:
-`❌ \`Error al mejorar la imagen.\`
+`❌ \`Error al mejorar la imagen\`
+
+${e.message || e}
 
 > ${config.BOT_NAME}`
         }, { quoted: m })
