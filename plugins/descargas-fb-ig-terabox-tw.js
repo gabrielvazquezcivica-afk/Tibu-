@@ -13,13 +13,15 @@ handler.run = async (sock, m, args) => {
             text:
 `📥 \`DOWNLOADER\`
 
-✏️ Ingresa un enlace válido.
+Envía un enlace:
 
-Ejemplos:
-.ig https://instagram.com/...
-.fb https://facebook.com/...
-.tw https://x.com/...
-.terabox https://terabox.com/...
+• Instagram
+• Facebook
+• Twitter / X
+• Terabox
+
+Ejemplo:
+.dl https://...
 
 > ${config.BOT_NAME}`
         }, { quoted: m })
@@ -34,143 +36,112 @@ Ejemplos:
             }
         })
 
-        const key = Buffer
-            .from('ZWt1c2Fz', 'base64')
-            .toString('utf-8')
-            .split('')
-            .reverse()
-            .join('')
-
-        const cmd = m.body
-            ?.slice(1)
-            .split(' ')[0]
-            .toLowerCase()
+        const key = 'sasuke'
 
         let endpoint = ''
+        let tipo = ''
 
         if (
-            cmd === 'ig' ||
-            cmd === 'instagram'
+            url.includes('instagram.com') ||
+            url.includes('instagr.am')
         ) {
+            tipo = 'instagram'
             endpoint =
-                `https://api.evogb.org/dl/instagram?url=${encodeURIComponent(url)}&key=${key}`
+            `https://api.evogb.org/dl/instagram?url=${encodeURIComponent(url)}&key=${key}`
         }
 
         else if (
-            cmd === 'fb' ||
-            cmd === 'facebook'
+            url.includes('facebook.com') ||
+            url.includes('fb.watch')
         ) {
+            tipo = 'facebook'
             endpoint =
-                `https://api.evogb.org/dl/facebook?url=${encodeURIComponent(url)}&key=${key}`
+            `https://api.evogb.org/dl/facebook?url=${encodeURIComponent(url)}&key=${key}`
         }
 
         else if (
-            cmd === 'tw' ||
-            cmd === 'twitter' ||
-            cmd === 'twdl'
+            url.includes('twitter.com') ||
+            url.includes('x.com')
         ) {
+            tipo = 'twitter'
             endpoint =
-                `https://api.evogb.org/dl/twitter?url=${encodeURIComponent(url)}&key=${key}`
+            `https://api.evogb.org/dl/twitter?url=${encodeURIComponent(url)}&key=${key}`
         }
 
         else if (
-            cmd === 'tera' ||
-            cmd === 'terabox'
+            url.includes('terabox') ||
+            url.includes('1024tera') ||
+            url.includes('terafiles')
         ) {
+            tipo = 'terabox'
             endpoint =
-                `https://api.evogb.org/dl/terabox?url=${encodeURIComponent(url)}&key=${key}`
+            `https://api.evogb.org/dl/terabox?url=${encodeURIComponent(url)}&key=${key}`
+        }
+
+        else {
+            return sock.sendMessage(from, {
+                text:
+'`❌ Plataforma no soportada`'
+            }, { quoted: m })
         }
 
         const { data } = await axios.get(endpoint)
 
-        if (!data?.status) {
-            throw new Error(
-                data?.message ||
-                'Sin respuesta'
-            )
-        }
-
-        let downloadUrl = ''
+        let dl = ''
         let fileName = 'archivo'
-        let isDocument = false
 
-        if (
-            cmd === 'ig' ||
-            cmd === 'instagram'
-        ) {
-            downloadUrl =
-                data?.data?.[0]?.url
+        if (tipo === 'instagram') {
+            dl = data?.data?.[0]?.url
         }
 
-        else if (
-            cmd === 'fb' ||
-            cmd === 'facebook'
-        ) {
-            downloadUrl =
-                data?.resultados?.[0]?.url
+        if (tipo === 'facebook') {
+            dl = data?.resultados?.[0]?.url
         }
 
-        else if (
-            cmd === 'tw' ||
-            cmd === 'twitter' ||
-            cmd === 'twdl'
-        ) {
-            downloadUrl =
-                data?.data?.result?.[0]?.url
+        if (tipo === 'twitter') {
+            dl = data?.data?.result?.[0]?.url
         }
 
-        else if (
-            cmd === 'tera' ||
-            cmd === 'terabox'
-        ) {
+        if (tipo === 'terabox') {
 
-            const file =
-                data?.data?.[0]
+            const file = data?.data?.[0]
 
-            downloadUrl =
+            dl =
                 file?.dlink ||
                 file?.url
 
             fileName =
                 file?.server_filename ||
                 'archivo'
-
-            if (
-                fileName.endsWith('.apk')
-            ) {
-                isDocument = true
-            }
         }
 
-        if (!downloadUrl) {
+        if (!dl) {
             throw new Error(
                 'No encontré enlace de descarga'
             )
         }
 
-        if (isDocument) {
+        if (
+            fileName.endsWith('.apk')
+        ) {
 
             await sock.sendMessage(from, {
                 document: {
-                    url: downloadUrl
+                    url: dl
                 },
                 fileName,
                 mimetype:
-                    'application/vnd.android.package-archive'
-            }, {
-                quoted: m
-            })
+                'application/vnd.android.package-archive'
+            }, { quoted: m })
 
         } else {
 
             await sock.sendMessage(from, {
                 video: {
-                    url: downloadUrl
+                    url: dl
                 },
                 mimetype: 'video/mp4'
-            }, {
-                quoted: m
-            })
+            }, { quoted: m })
 
         }
 
@@ -184,7 +155,7 @@ Ejemplos:
     } catch (e) {
 
         console.log(
-            'DOWNLOADER ERROR:',
+            'DL ERROR:',
             e.response?.data || e
         )
 
@@ -197,34 +168,15 @@ Ejemplos:
 
         await sock.sendMessage(from, {
             text:
-`❌ \`Error al descargar\`
+`❌ Error al descargar
 
-${e.response?.data?.message || e.message}
-
-> ${config.BOT_NAME}`
+${e.response?.data?.message || e.message}`
         }, { quoted: m })
     }
 }
 
-handler.command = [
-    'ig',
-    'instagram',
-    'fb',
-    'facebook',
-    'tw',
-    'twitter',
-    'twdl',
-    'tera',
-    'terabox'
-]
-
-handler.help = [
-    'ig <url>',
-    'fb <url>',
-    'tw <url>',
-    'terabox <url>'
-]
-
+handler.command = ['dl']
+handler.help = ['dl <url>']
 handler.tags = ['descargas']
 handler.menu = true
 
