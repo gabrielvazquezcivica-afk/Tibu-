@@ -4,36 +4,22 @@ let handler = {}
 
 handler.run = async (sock, m) => {
 
-    const canal =
-    'https://whatsapp.com/channel/0029VbDISeq3QxS45JPaOh21'
+    const from = m.key.remoteJid
 
-    const texto =
+    await sock.sendMessage(from, {
+        newsletterAdminInviteMessage: {
+            newsletterJid: '120363420000000000@newsletter',
+            newsletterName: 'Canal Oficial Tibu',
+            jpegThumbnail: Buffer.alloc(0),
+            caption:
 `📢 \`CANAL OFICIAL\`
 
-> 🚀 Únete al canal oficial de Tibu Bot
-> 🔔 Recibe novedades y actualizaciones
-> 📡 Nuevos comandos y funciones
+> Únete al canal oficial
+> Recibe novedades y actualizaciones
 
 > ${config.BOT_NAME}`
-
-    await sock.sendMessage(
-        m.key.remoteJid,
-        {
-            text: texto,
-            contextInfo: {
-                externalAdReply: {
-                    title: '📢 CANAL OFICIAL DE TIBU',
-                    body: 'Únete y mantente informado',
-                    thumbnailUrl: 'https://i.imgur.com/4M34hi2.jpeg',
-                    sourceUrl: canal,
-                    mediaType: 1,
-                    renderLargerThumbnail: true,
-                    showAdAttribution: false
-                }
-            }
-        },
-        { quoted: m }
-    )
+        }
+    }, { quoted: m })
 
 }
 
