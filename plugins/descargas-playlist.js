@@ -31,13 +31,16 @@ Ejemplo:
         })
 
         const result = await yts(query)
-        const videos = result.videos.slice(0, 9)
 
-        if (!videos.length) {
+        const allVideos = result.videos
+
+        if (!allVideos.length) {
             return sock.sendMessage(from, {
                 text: '❌ No encontré resultados'
             }, { quoted: m })
         }
+
+        const videos = allVideos.slice(0, 9)
 
         let texto = `🎵 RESULTADOS PARA: ${query.toUpperCase()}\n\n`
 
@@ -52,13 +55,18 @@ Ejemplo:
             texto += `> ⏱️ ${v.timestamp}\n\n`
         })
 
-        texto += 'Reacciona con un número para descargar el audio.'
+        texto += '🔄 Más resultados\n'
+        texto += '🎧 Reacciona con un número para descargar.'
 
         const msg = await sock.sendMessage(from, {
             text: texto
         }, { quoted: m })
 
-        global.playlistCache[msg.key.id] = videos
+        global.playlistCache[msg.key.id] = {
+            query,
+            page: 0,
+            allVideos
+        }
 
         await sock.sendMessage(from, {
             react: {
