@@ -307,29 +307,51 @@ sock.ev.on('messages.upsert', async ({ messages, type }) => {
     const bloqueado = await antiLink(sock, m)
 if (bloqueado) continue
 
-    let texto =
-      m.message?.conversation ||
-      m.message?.extendedTextMessage?.text ||
-      m.message?.buttonsResponseMessage?.selectedButtonId ||
-      m.message?.listResponseMessage?.singleSelectReply?.selectedRowId ||
-      ''
+    if (m.message?.reactionMessage) {
 
-try {
+    const reaction = m.message.reactionMessage.text
+    const targetId = m.message.reactionMessage.key?.id
 
-    const params =
-      m.message?.interactiveResponseMessage
-      ?.nativeFlowResponseMessage?.paramsJson
+    const videos = global.playlistCache?.[targetId]
 
-    if (params) {
-        const json = JSON.parse(params)
+    if (videos) {
 
-        texto =
-            json.id ||
-            json.selectedId ||
-            texto
+        const mapa = {
+            '1️⃣': 0,
+            '2️⃣': 1,
+            '3️⃣': 2,
+            '4️⃣': 3,
+            '5️⃣': 4,
+            '6️⃣': 5,
+            '7️⃣': 6,
+            '8️⃣': 7,
+            '9️⃣': 8
+        }
+
+        const index = mapa[reaction]
+
+        if (index !== undefined && videos[index]) {
+
+            const url = videos[index].url
+
+            const fakeMsg = {
+                ...m,
+                message: {
+                    conversation: `.ytmp3 ${url}`
+                }
+            }
+
+            await runCommand(
+                sock,
+                fakeMsg,
+                'ytmp3',
+                [url]
+            )
+        }
     }
 
-} catch {}
+    continue
+}
 
     if (!texto.startsWith(config.PREFIX)) {
       const from = m.key.remoteJid
