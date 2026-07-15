@@ -64,5 +64,7 @@ handler.run = async (sock, m) => {
 
 handler.command = ['t']
 handler.help = ['t']
-handler.menub= false
+handler.tags = ['descargas']
+handler.menu = true
+
 export default handler
