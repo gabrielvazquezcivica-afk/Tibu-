@@ -45,7 +45,7 @@ handler.run = async (sock, m) => {
         })
 
         return sock.sendMessage(from, {
-            text: '`🚫 Solo capitanes pueden usar la ruleta`'
+            text: '`🚫 Solo admins pueden usar la ruleta`'
         }, { quoted: m })
     }
 
