@@ -68,7 +68,7 @@ handler.run = async (sock, m) => {
     })
 
     return sock.sendMessage(from, {
-      text: '`🚫 Solo capitanes pueden banear usuarios`'
+      text: '`🚫 Solo owners pueden banear usuarios`'
     }, { quoted: m })
   }
 
