@@ -334,11 +334,11 @@ if (bloqueado) continue
     const url = videos[index].url
 
     await runCommand(
-        sock,
-        m,
-        'ytmp3',
-        [url]
-    )
+    sock,
+    m,
+    'ytmp3',
+    [url, '--playlist']
+)
 
     continue
 }
