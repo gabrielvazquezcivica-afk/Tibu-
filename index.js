@@ -344,7 +344,7 @@ if (bloqueado) continue
             await runCommand(
                 sock,
                 fakeMsg,
-                'ytmp3',
+                'play',
                 [url]
             )
         }
