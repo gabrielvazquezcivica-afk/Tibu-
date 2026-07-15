@@ -63,7 +63,7 @@ handler.run = async (sock, m, args) => {
 
     if (!isAdmin) {
         return sock.sendMessage(from, {
-            text: '`🚫 Solo capitanes pueden usar el ancla`'
+            text: '`🚫 Solo admins pueden usar el ancla`'
         }, { quoted: m })
     }
 
