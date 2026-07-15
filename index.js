@@ -307,10 +307,30 @@ sock.ev.on('messages.upsert', async ({ messages, type }) => {
     const bloqueado = await antiLink(sock, m)
 if (bloqueado) continue
 
-    const texto =
-      m.message.conversation ||
-      m.message.extendedTextMessage?.text ||
+    let texto =
+      m.message?.conversation ||
+      m.message?.extendedTextMessage?.text ||
+      m.message?.buttonsResponseMessage?.selectedButtonId ||
+      m.message?.listResponseMessage?.singleSelectReply?.selectedRowId ||
       ''
+
+try {
+
+    if (
+        !texto &&
+        m.message?.interactiveResponseMessage
+            ?.nativeFlowResponseMessage?.paramsJson
+    ) {
+
+        const json = JSON.parse(
+            m.message.interactiveResponseMessage
+            .nativeFlowResponseMessage.paramsJson
+        )
+
+        texto = json.id || ''
+    }
+
+} catch {}
 
     if (!texto.startsWith(config.PREFIX)) {
       const from = m.key.remoteJid
