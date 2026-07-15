@@ -1,6 +1,6 @@
 import yts from 'yt-search'
-import { sendList } from '../lib/sendList.js'
-import config from '../config.js'
+
+global.playlistCache = global.playlistCache || {}
 
 let handler = {}
 
@@ -12,21 +12,16 @@ handler.run = async (sock, m, args) => {
     if (!query) {
         return sock.sendMessage(from, {
             text:
-`🎵 \`PLAYLIST\`
+`🎵 PLAYLIST
 
-Busca canciones o videos de YouTube.
+Busca canciones en YouTube.
 
 Ejemplo:
-.playlist mc davo
-.playlist canserbero
-
-> ${config.BOT_NAME}`
+.playlist mc davo`
         }, { quoted: m })
     }
 
     try {
-
-        console.log('PLAYLIST INICIO')
 
         await sock.sendMessage(from, {
             react: {
@@ -35,48 +30,35 @@ Ejemplo:
             }
         })
 
-        console.log('BUSCANDO:', query)
-
         const result = await yts(query)
-
-        console.log('RESULTADO OBTENIDO')
-
-        const videos = result.videos.slice(0, 10)
-
-        console.log('VIDEOS:', videos.length)
+        const videos = result.videos.slice(0, 9)
 
         if (!videos.length) {
             return sock.sendMessage(from, {
-                text: '`❌ No encontré resultados`'
+                text: '❌ No encontré resultados'
             }, { quoted: m })
         }
 
-        const sections = [
-{
-    title: '🎵 RESULTADOS',
-    rows: videos.map(v => ({
-        title: v.title,
-        rowId: `.ytmp3 ${v.url}`,
-        description: v.timestamp
-    }))
-}
-]
+        let texto = `🎵 RESULTADOS PARA: ${query.toUpperCase()}\n\n`
 
-        console.log('SECCIONES CREADAS')
-        console.log(JSON.stringify(sections, null, 2))
+        const emojis = [
+            '1️⃣','2️⃣','3️⃣',
+            '4️⃣','5️⃣','6️⃣',
+            '7️⃣','8️⃣','9️⃣'
+        ]
 
-        console.log('ANTES DEL SENDLIST')
+        videos.forEach((v, i) => {
+            texto += `${emojis[i]} ${v.title}\n`
+            texto += `> ⏱️ ${v.timestamp}\n\n`
+        })
 
-        await sendList(
-            sock,
-            from,
-            'TIBU BOT',
-            `🔎 Resultados para: ${query}`,
-            'ABRIR RESULTADOS',
-            sections
-        )
+        texto += 'Reacciona con un número para descargar el audio.'
 
-        console.log('DESPUES DEL SENDLIST')
+        const msg = await sock.sendMessage(from, {
+            text: texto
+        }, { quoted: m })
+
+        global.playlistCache[msg.key.id] = videos
 
         await sock.sendMessage(from, {
             react: {
@@ -87,21 +69,10 @@ Ejemplo:
 
     } catch (e) {
 
-        console.log('PLAYLIST ERROR:')
-        console.log(e)
+        console.log('PLAYLIST ERROR:', e)
 
         await sock.sendMessage(from, {
-            react: {
-                text: '❌',
-                key: m.key
-            }
-        })
-
-        await sock.sendMessage(from, {
-            text:
-`❌ Error
-
-${e.message}`
+            text: `❌ ${e.message}`
         }, { quoted: m })
     }
 }
