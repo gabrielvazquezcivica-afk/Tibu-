@@ -1,53 +1,34 @@
-import {
-    proto,
-    generateWAMessageFromContent
-} from '@whiskeysockets/baileys'
+import { proto, generateWAMessageFromContent } from '@whiskeysockets/baileys'
 
 let handler = {}
 
 handler.run = async (sock, m) => {
 
-    const msg = generateWAMessageFromContent(
-        m.key.remoteJid,
+    const jid = m.key.remoteJid
+
+    const message = generateWAMessageFromContent(
+        jid,
         {
             viewOnceMessage: {
                 message: {
-                    messageContextInfo: {},
-                    interactiveMessage:
-                    proto.Message.InteractiveMessage.create({
-
+                    interactiveMessage: proto.Message.InteractiveMessage.create({
                         body: {
-                            text: '🧪 Prueba de botones Tibu'
+                            text: '🔥 Botón de prueba'
                         },
-
                         footer: {
                             text: 'Tibu Bot'
                         },
-
-                        header: {
-                            title: 'Botones',
-                            hasMediaAttachment: false
-                        },
-
                         nativeFlowMessage: {
                             buttons: [
                                 {
                                     name: 'quick_reply',
                                     buttonParamsJson: JSON.stringify({
-                                        display_text: '📋 MENU',
+                                        display_text: 'MENU',
                                         id: '.menu'
-                                    })
-                                },
-                                {
-                                    name: 'quick_reply',
-                                    buttonParamsJson: JSON.stringify({
-                                        display_text: '🎵 PLAYLIST',
-                                        id: '.playlist mc davo'
                                     })
                                 }
                             ]
                         }
-
                     })
                 }
             }
@@ -56,9 +37,11 @@ handler.run = async (sock, m) => {
     )
 
     await sock.relayMessage(
-        m.key.remoteJid,
-        msg.message,
-        { messageId: msg.key.id }
+        jid,
+        message.message,
+        {
+            messageId: message.key.id
+        }
     )
 }
 
