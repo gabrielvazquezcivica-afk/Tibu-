@@ -38,7 +38,7 @@ handler.run = async (sock, m, args) => {
 
     if (!owners.includes(senderNum)) {
         await sock.sendMessage(from, { react: { text: '🚫', key: m.key } })
-        return sock.sendMessage(from, { text: '`🚫 Solo capitanes pueden usar este comando`' }, { quoted: m })
+        return sock.sendMessage(from, { text: '`🚫 Solo owners pueden usar este comando`' }, { quoted: m })
     }
 
     let texto = ''
