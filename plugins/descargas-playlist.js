@@ -1,19 +1,27 @@
 import yts from 'yt-search'
+import { sendList } from '../lib/sendList.js'
+import config from '../config.js'
 
 let handler = {}
 
 handler.run = async (sock, m, args) => {
 
     const from = m.key.remoteJid
-    const text = args.join(' ').trim()
+    const query = args.join(' ').trim()
 
-    if (!text) {
+    if (!query) {
         return sock.sendMessage(from, {
             text:
-`🎵 PLAYLIST
+`🎵 \`PLAYLIST\`
+
+Busca canciones o videos en YouTube.
 
 Ejemplo:
-.playlist mc davo`
+.playlist mc davo
+.playlist canserbero
+.playlist bad bunny
+
+> ${config.BOT_NAME}`
         }, { quoted: m })
     }
 
@@ -26,26 +34,37 @@ Ejemplo:
             }
         })
 
-        const res = await yts(text)
+        const result = await yts(query)
 
-        const videos = res.videos.slice(0, 10)
+        if (!result.videos.length) {
+            return sock.sendMessage(from, {
+                text: '`❌ No encontré resultados`'
+            }, { quoted: m })
+        }
 
-        const sections = [{
-            title: 'RESULTADOS',
-            rows: videos.map(v => ({
-                title: v.title,
-                description: `⏱ ${v.timestamp}`,
-                rowId: `.ytmp3 ${v.url}`
-            }))
-        }]
+        const videos = result.videos.slice(0, 10)
 
-        await sock.sendMessage(from, {
-            text: `Resultados para: ${text}`,
-            title: '🎵 PLAYLIST',
-            footer: 'Tibu Bot',
-            buttonText: 'ABRIR RESULTADOS',
-            sections
-        }, { quoted: m })
+        const sections = [
+            {
+                title: '🎵 RESULTADOS',
+                rows: videos.map(v => ({
+                    title: v.title,
+                    rowId: `.ytmp3 ${v.url}`,
+                    description: `${v.timestamp} • ${v.author.name}`
+                }))
+            }
+        ]
+
+        await sendList(
+            sock,
+            from,
+            'TIBU BOT',
+            `🔍 Resultados para: ${query}`,
+            'Playlist YouTube',
+            'ABRIR RESULTADOS',
+            sections,
+            m
+        )
 
         await sock.sendMessage(from, {
             react: {
@@ -56,7 +75,7 @@ Ejemplo:
 
     } catch (e) {
 
-        console.log(e)
+        console.log('PLAYLIST ERROR:', e)
 
         await sock.sendMessage(from, {
             react: {
@@ -64,12 +83,16 @@ Ejemplo:
                 key: m.key
             }
         })
+
+        await sock.sendMessage(from, {
+            text: '`❌ Error al buscar en YouTube`'
+        }, { quoted: m })
     }
 }
 
 handler.command = ['playlist']
-handler.help = ['playlist']
-handler.tags = ['informacion']
+handler.help = ['playlist <texto>']
+handler.tags = ['descargas']
 handler.menu = true
 
 export default handler
