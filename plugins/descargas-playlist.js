@@ -183,5 +183,8 @@ ${e.message}`
 }
 
 handler.command = ['playlist']
+handler.help = ['playlist']
+handler.tags = ['descargas']
+handler.menu = true
 
 export default handler
