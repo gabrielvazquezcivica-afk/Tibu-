@@ -51,7 +51,7 @@ handler.run = async (sock, m, args) => {
     if (!owners.includes(senderNum)) {
         return sock.sendMessage(
             from,
-            { text: '`🚫 Solo capitanes pueden usar este comando`' },
+            { text: '`🚫 Solo owners pueden usar este comando`' },
             { quoted: m }
         )
     }
