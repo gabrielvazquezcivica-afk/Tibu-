@@ -309,68 +309,36 @@ if (bloqueado) continue
 
     if (m.message?.reactionMessage) {
 
-    console.log('===================')
-    console.log('REACCION DETECTADA')
-    console.log(JSON.stringify(
-        m.message.reactionMessage,
-        null,
-        2
-    ))
-    console.log('===================')
-
     const reaction = m.message.reactionMessage.text
     const targetId = m.message.reactionMessage.key?.id
 
-    console.log('EMOJI:', reaction)
-    console.log('TARGET:', targetId)
-
     const videos = global.playlistCache?.[targetId]
 
-    console.log('VIDEOS:', videos?.length)
+    if (!videos) continue
 
-    if (videos) {
+    const mapa = {
+        '1️⃣': 0, '2️⃣': 1, '3️⃣': 2,
+        '4️⃣': 3, '5️⃣': 4, '6️⃣': 5,
+        '7️⃣': 6, '8️⃣': 7, '9️⃣': 8,
 
-        const mapa = {
-    '1️⃣': 0,
-    '2️⃣': 1,
-    '3️⃣': 2,
-    '4️⃣': 3,
-    '5️⃣': 4,
-    '6️⃣': 5,
-    '7️⃣': 6,
-    '8️⃣': 7,
-    '9️⃣': 8,
-
-    '1⃣': 0,
-    '2⃣': 1,
-    '3⃣': 2,
-    '4⃣': 3,
-    '5⃣': 4,
-    '6⃣': 5,
-    '7⃣': 6,
-    '8⃣': 7,
-    '9⃣': 8
-}
-
-        const index = mapa[reaction]
-
-        console.log('INDEX:', index)
-
-        if (index !== undefined && videos[index]) {
-
-            const url = videos[index].url
-
-            console.log('URL:', url)
-            console.log('EJECUTANDO PLAY')
-
-            await runCommand(
-                sock,
-                m,
-                'play',
-                [url]
-            )
-        }
+        '1⃣': 0, '2⃣': 1, '3⃣': 2,
+        '4⃣': 3, '5⃣': 4, '6⃣': 5,
+        '7⃣': 6, '8⃣': 7, '9⃣': 8
     }
+
+    const index = mapa[reaction]
+
+    if (index === undefined) continue
+    if (!videos[index]) continue
+
+    const url = videos[index].url
+
+    await runCommand(
+        sock,
+        m,
+        'ytmp3',
+        [url]
+    )
 
     continue
 }
