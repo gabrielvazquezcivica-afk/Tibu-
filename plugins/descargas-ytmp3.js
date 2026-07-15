@@ -4,27 +4,51 @@ let handler = {}
 
 handler.run = async (sock, m, args) => {
     const from = m.key.remoteJid
-
     const url = args[0]
 
     if (!url) {
         return sock.sendMessage(from, {
-            text:
-`🎵 YTMP3
+            text: `🎵 *YTMP3*
 
 Uso:
 .ytmp3 https://youtube.com/watch?v=xxxx`
         }, { quoted: m })
     }
 
+    const esPlaylist = args.includes('--playlist')
+
     try {
 
         await sock.sendMessage(from, {
             react: {
-                text: '⏳',
+                text: esPlaylist ? '🎶' : '🎧',
                 key: m.key
             }
         })
+
+        if (esPlaylist) {
+
+            await sock.sendMessage(from, {
+                text: `
+╭━━━〔 🎶 𝐏𝐋𝐀𝐘𝐋𝐈𝐒𝐓 〕━━━⬣
+┃ 🎵 Canción seleccionada
+┃ ⏳ Descargando audio...
+┃ 🎧 Preparando archivo MP3
+╰━━━━━━━━━━━━━━━━⬣`
+            }, { quoted: m })
+
+        } else {
+
+            await sock.sendMessage(from, {
+                text: `
+╭━━━〔 🎵 𝐘𝐓𝐌𝐏𝟑 〕━━━⬣
+┃ 🔎 Analizando enlace
+┃ ⏳ Descargando audio
+┃ 📦 Procesando archivo
+╰━━━━━━━━━━━━━━━━⬣`
+            }, { quoted: m })
+
+        }
 
         const { data } = await axios.get(
             `https://api.delirius.store/download/ytmp3?url=${encodeURIComponent(url)}`
@@ -39,7 +63,7 @@ Uso:
         const titulo =
             data?.data?.title ||
             data?.title ||
-            'audio.mp3'
+            'audio'
 
         if (!audio) {
             throw new Error('No se encontró el enlace de descarga')
@@ -72,7 +96,7 @@ Uso:
         })
 
         await sock.sendMessage(from, {
-            text: `❌ Error\n\n${e.message}`
+            text: `❌ Error al descargar el audio.\n\n${e.message}`
         }, { quoted: m })
     }
 }
@@ -80,6 +104,6 @@ Uso:
 handler.command = ['ytmp3']
 handler.help = ['ytmp3 <url>']
 handler.tags = ['descargas']
-handler.menu = false
+handler.menu = true
 
 export default handler
