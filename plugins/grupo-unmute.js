@@ -71,7 +71,7 @@ const senderNum = limpiarNumero(sender)
         })
 
         return sock.sendMessage(from, {
-            text: '`🚫 Solo capitanes pueden liberarlo`'
+            text: '`🚫 Solo admins pueden liberarlo`'
         }, { quoted: m })
     }
 
