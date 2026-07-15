@@ -62,7 +62,7 @@ handler.run = async (sock, m) => {
         })
 
         return sock.sendMessage(from, {
-            text: '`🚫 Solo los capitanes pueden usar esto`'
+            text: '`🚫 Solo los admins pueden usar esto`'
         }, { quoted: m })
     }
 
