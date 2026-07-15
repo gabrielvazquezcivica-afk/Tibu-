@@ -312,9 +312,87 @@ if (bloqueado) continue
     const reaction = m.message.reactionMessage.text
     const targetId = m.message.reactionMessage.key?.id
 
-    const videos = global.playlistCache?.[targetId]
+    const data = global.playlistCache?.[targetId]
 
-    if (!videos) continue
+    if (!data) continue
+
+    // 🔄 SIGUIENTE PÁGINA
+    if (reaction === '🔄') {
+
+        const nextPage = data.page + 1
+
+        const start = nextPage * 9
+        const end = start + 9
+
+        const videos = data.allVideos.slice(start, end)
+
+        if (!videos.length) {
+
+            await sock.sendMessage(
+                m.key.remoteJid,
+                {
+                    text: '❌ No hay más resultados.'
+                }
+            )
+
+            continue
+        }
+
+        try {
+
+            await sock.sendMessage(
+                m.key.remoteJid,
+                {
+                    delete: {
+                        remoteJid: m.key.remoteJid,
+                        fromMe: true,
+                        id: targetId
+                    }
+                }
+            )
+
+        } catch {}
+
+        const emojis = [
+            '1️⃣','2️⃣','3️⃣',
+            '4️⃣','5️⃣','6️⃣',
+            '7️⃣','8️⃣','9️⃣'
+        ]
+
+        let texto =
+`🎵 RESULTADOS PARA: ${data.query.toUpperCase()}
+
+`
+
+        videos.forEach((v, i) => {
+            texto += `${emojis[i]} ${v.title}\n`
+            texto += `> ⏱️ ${v.timestamp}\n\n`
+        })
+
+        texto += '🔄 Más resultados\n'
+        texto += '🎧 Reacciona con un número para descargar.'
+
+        const nuevoMsg = await sock.sendMessage(
+            m.key.remoteJid,
+            { text: texto }
+        )
+
+        global.playlistCache[nuevoMsg.key.id] = {
+            query: data.query,
+            page: nextPage,
+            allVideos: data.allVideos
+        }
+
+        delete global.playlistCache[targetId]
+
+        continue
+    }
+
+    // DESCARGA
+    const videos = data.allVideos.slice(
+        data.page * 9,
+        data.page * 9 + 9
+    )
 
     const mapa = {
         '1️⃣': 0, '2️⃣': 1, '3️⃣': 2,
@@ -334,11 +412,11 @@ if (bloqueado) continue
     const url = videos[index].url
 
     await runCommand(
-    sock,
-    m,
-    'ytmp3',
-    [url, '--playlist']
-)
+        sock,
+        m,
+        'ytmp3',
+        [url, '--playlist']
+    )
 
     continue
 }
