@@ -14,7 +14,7 @@ handler.run = async (sock, m, args) => {
             text:
 `🎵 \`PLAYLIST\`
 
-Busca canciones o videos en YouTube.
+Busca canciones o videos de YouTube.
 
 Ejemplo:
 .playlist mc davo
@@ -34,23 +34,28 @@ Ejemplo:
             }
         })
 
+        console.log('BUSCANDO:', query)
+
         const result = await yts(query)
 
-        if (!result.videos.length) {
+        const videos = result.videos.slice(0, 10)
+
+        console.log('VIDEOS:', videos.length)
+
+        if (!videos.length) {
             return sock.sendMessage(from, {
                 text: '`❌ No encontré resultados`'
             }, { quoted: m })
         }
 
-        const videos = result.videos.slice(0, 10)
-
         const sections = [
             {
                 title: '🎵 RESULTADOS',
                 rows: videos.map(v => ({
+                    header: 'YOUTUBE',
                     title: v.title,
-                    rowId: `.ytmp3 ${v.url}`,
-                    description: `${v.timestamp} • ${v.author.name}`
+                    description: `${v.timestamp} • ${v.author.name}`,
+                    id: `.ytmp3 ${v.url}`
                 }))
             }
         ]
@@ -59,11 +64,9 @@ Ejemplo:
             sock,
             from,
             'TIBU BOT',
-            `🔍 Resultados para: ${query}`,
-            'Playlist YouTube',
+            `🔎 Resultados para: ${query}`,
             'ABRIR RESULTADOS',
-            sections,
-            m
+            sections
         )
 
         await sock.sendMessage(from, {
@@ -85,7 +88,10 @@ Ejemplo:
         })
 
         await sock.sendMessage(from, {
-            text: '`❌ Error al buscar en YouTube`'
+            text:
+`❌ Error al buscar
+
+${e.message}`
         }, { quoted: m })
     }
 }
