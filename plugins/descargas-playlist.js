@@ -1,7 +1,45 @@
 import yts from 'yt-search'
-import config from '../config.js'
+import { proto, generateWAMessageFromContent } from '@whiskeysockets/baileys'
 
 let handler = {}
+
+async function sendPlaylistButtons(sock, jid, resultados) {
+
+    const buttons = resultados.map((v, i) => ({
+        name: 'quick_reply',
+        buttonParamsJson: JSON.stringify({
+            display_text: `${i + 1}. ${v.title.substring(0, 45)}`,
+            id: `.ytmp3 ${v.url}`
+        })
+    }))
+
+    const msg = generateWAMessageFromContent(
+        jid,
+        {
+            interactiveMessage: proto.Message.InteractiveMessage.create({
+                body: {
+                    text:
+`🎵 PLAYLIST YOUTUBE
+
+Selecciona una canción para descargar en MP3`
+                },
+                footer: {
+                    text: 'Tibu Bot'
+                },
+                nativeFlowMessage: {
+                    buttons
+                }
+            })
+        },
+        {}
+    )
+
+    await sock.relayMessage(
+        jid,
+        msg.message,
+        { messageId: msg.key.id }
+    )
+}
 
 handler.run = async (sock, m, args) => {
 
@@ -11,16 +49,14 @@ handler.run = async (sock, m, args) => {
     if (!text) {
         return sock.sendMessage(from, {
             text:
-`🎵 \`PLAYLIST YOUTUBE\`
+`🎵 \`PLAYLIST\`
 
-Busca canciones o videos en YouTube y descarga el audio automáticamente al seleccionar un resultado.
+Busca canciones en YouTube.
 
-📌 Ejemplo:
-.playlist Bad Bunny
-.playlist Grupo Frontera
-.playlist Imagine Dragons
+Ejemplo:
+.playlist bad bunny
 
-> ${config.BOT_NAME}`
+Al tocar una canción se descargará automáticamente con .ytmp3`
         }, { quoted: m })
     }
 
@@ -33,38 +69,28 @@ Busca canciones o videos en YouTube y descarga el audio automáticamente al sele
             }
         })
 
-        const result = await yts(text)
-        const videos = result.videos.slice(0, 15)
+        const search = await yts(text)
+
+        const videos =
+            search.videos
+            .filter(v => v.seconds > 0)
+            .slice(0, 10)
 
         if (!videos.length) {
             return sock.sendMessage(from, {
-                text:
-'`❌ No encontré resultados para tu búsqueda`'
+                text: '`❌ No encontré resultados`'
             }, { quoted: m })
         }
 
-        const sections = [{
-            title: `🎵 RESULTADOS DE: ${text}`,
-            rows: videos.map(v => ({
-                title: v.title,
-                description:
-`⏱️ ${v.timestamp} • 👤 ${v.author.name}`,
-                id: `.ytmp3 ${v.url}`
-            }))
-        }]
-
-        await sock.sendList(
+        await sendPlaylistButtons(
+            sock,
             from,
-            '🎵 PLAYLIST YOUTUBE',
-            `Se encontraron ${videos.length} resultados.\n\nSelecciona una canción para descargar el audio.`,
-            'SELECCIONAR',
-            sections,
-            m
+            videos
         )
 
         await sock.sendMessage(from, {
             react: {
-                text: '✅',
+                text: '🎵',
                 key: m.key
             }
         })
@@ -85,13 +111,7 @@ Busca canciones o videos en YouTube y descarga el audio automáticamente al sele
 
         await sock.sendMessage(from, {
             text:
-`❌ \`ERROR\`
-
-No pude realizar la búsqueda.
-
-${e.message}
-
-> ${config.BOT_NAME}`
+'`❌ Error al buscar canciones`'
         }, { quoted: m })
     }
 }
