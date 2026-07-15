@@ -309,10 +309,24 @@ if (bloqueado) continue
 
     if (m.message?.reactionMessage) {
 
+    console.log('===================')
+    console.log('REACCION DETECTADA')
+    console.log(JSON.stringify(
+        m.message.reactionMessage,
+        null,
+        2
+    ))
+    console.log('===================')
+
     const reaction = m.message.reactionMessage.text
     const targetId = m.message.reactionMessage.key?.id
 
+    console.log('EMOJI:', reaction)
+    console.log('TARGET:', targetId)
+
     const videos = global.playlistCache?.[targetId]
+
+    console.log('VIDEOS:', videos?.length)
 
     if (videos) {
 
@@ -330,20 +344,18 @@ if (bloqueado) continue
 
         const index = mapa[reaction]
 
+        console.log('INDEX:', index)
+
         if (index !== undefined && videos[index]) {
 
             const url = videos[index].url
 
-            const fakeMsg = {
-                ...m,
-                message: {
-                    conversation: `.ytmp3 ${url}`
-                }
-            }
+            console.log('URL:', url)
+            console.log('EJECUTANDO PLAY')
 
             await runCommand(
                 sock,
-                fakeMsg,
+                m,
                 'play',
                 [url]
             )
