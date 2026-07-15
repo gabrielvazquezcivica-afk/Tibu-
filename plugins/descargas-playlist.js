@@ -1,45 +1,8 @@
 import yts from 'yt-search'
-import { proto, generateWAMessageFromContent } from '@whiskeysockets/baileys'
+import config from '../config.js'
+import { sendList } from '../lib/sendList.js'
 
 let handler = {}
-
-async function sendPlaylistButtons(sock, jid, resultados) {
-
-    const buttons = resultados.map((v, i) => ({
-        name: 'quick_reply',
-        buttonParamsJson: JSON.stringify({
-            display_text: `${i + 1}. ${v.title.substring(0, 45)}`,
-            id: `.ytmp3 ${v.url}`
-        })
-    }))
-
-    const msg = generateWAMessageFromContent(
-        jid,
-        {
-            interactiveMessage: proto.Message.InteractiveMessage.create({
-                body: {
-                    text:
-`🎵 PLAYLIST YOUTUBE
-
-Selecciona una canción para descargar en MP3`
-                },
-                footer: {
-                    text: 'Tibu Bot'
-                },
-                nativeFlowMessage: {
-                    buttons
-                }
-            })
-        },
-        {}
-    )
-
-    await sock.relayMessage(
-        jid,
-        msg.message,
-        { messageId: msg.key.id }
-    )
-}
 
 handler.run = async (sock, m, args) => {
 
@@ -53,10 +16,16 @@ handler.run = async (sock, m, args) => {
 
 Busca canciones en YouTube.
 
-Ejemplo:
+Ejemplos:
 .playlist bad bunny
+.playlist peso pluma
+.playlist grupo frontera
 
-Al tocar una canción se descargará automáticamente con .ytmp3`
+Selecciona una canción y descarga:
+• Audio MP3
+• Video MP4
+
+> ${config.BOT_NAME}`
         }, { quoted: m })
     }
 
@@ -69,10 +38,10 @@ Al tocar una canción se descargará automáticamente con .ytmp3`
             }
         })
 
-        const search = await yts(text)
+        const result = await yts(text)
 
         const videos =
-            search.videos
+            result.videos
             .filter(v => v.seconds > 0)
             .slice(0, 10)
 
@@ -82,32 +51,43 @@ Al tocar una canción se descargará automáticamente con .ytmp3`
             }, { quoted: m })
         }
 
-        try {
+        const sections = []
 
-    await sendPlaylistButtons(
-        sock,
-        from,
-        videos
-    )
+        for (const v of videos) {
 
-} catch (e) {
+            sections.push({
+                title: v.title.substring(0, 60),
+                rows: [
+                    {
+                        title: '🎵 Descargar Audio',
+                        description:
+                            `Duración: ${v.timestamp}`,
+                        id:
+                            `.ytmp3 ${v.url}`
+                    },
+                    {
+                        title: '🎥 Descargar Video',
+                        description:
+                            `Duración: ${v.timestamp}`,
+                        id:
+                            `.ytmp4 ${v.url}`
+                    }
+                ]
+            })
+        }
 
-    console.log(
-        'BOTONES ERROR:',
-        e
-    )
-
-    await sock.sendMessage(from, {
-        text:
-`❌ Error al enviar botones
-
-${e.message || e}`
-    }, { quoted: m })
-}
+        await sendList(
+            sock,
+            from,
+            '🎵 TIBU PLAYLIST',
+            `🔎 Búsqueda:\n> ${text}\n\nSelecciona una canción:`,
+            'ABRIR RESULTADOS',
+            sections
+        )
 
         await sock.sendMessage(from, {
             react: {
-                text: '🎵',
+                text: '✅',
                 key: m.key
             }
         })
@@ -128,7 +108,9 @@ ${e.message || e}`
 
         await sock.sendMessage(from, {
             text:
-'`❌ Error al buscar canciones`'
+`❌ Error al buscar canciones
+
+${e.message}`
         }, { quoted: m })
     }
 }
