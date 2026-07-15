@@ -82,11 +82,28 @@ Al tocar una canción se descargará automáticamente con .ytmp3`
             }, { quoted: m })
         }
 
-        await sendPlaylistButtons(
-            sock,
-            from,
-            videos
-        )
+        try {
+
+    await sendPlaylistButtons(
+        sock,
+        from,
+        videos
+    )
+
+} catch (e) {
+
+    console.log(
+        'BOTONES ERROR:',
+        e
+    )
+
+    await sock.sendMessage(from, {
+        text:
+`❌ Error al enviar botones
+
+${e.message || e}`
+    }, { quoted: m })
+}
 
         await sock.sendMessage(from, {
             react: {
