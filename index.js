@@ -316,18 +316,17 @@ if (bloqueado) continue
 
 try {
 
-    if (
-        !texto &&
-        m.message?.interactiveResponseMessage
-            ?.nativeFlowResponseMessage?.paramsJson
-    ) {
+    const params =
+      m.message?.interactiveResponseMessage
+      ?.nativeFlowResponseMessage?.paramsJson
 
-        const json = JSON.parse(
-            m.message.interactiveResponseMessage
-            .nativeFlowResponseMessage.paramsJson
-        )
+    if (params) {
+        const json = JSON.parse(params)
 
-        texto = json.id || ''
+        texto =
+            json.id ||
+            json.selectedId ||
+            texto
     }
 
 } catch {}
