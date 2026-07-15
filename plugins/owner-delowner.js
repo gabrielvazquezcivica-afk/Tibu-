@@ -38,7 +38,7 @@ handler.run = async (sock, m, args) => {
         })
         return sock.sendMessage(
             from,
-            { text: '`🚫 Solo capitanes pueden remover`' },
+            { text: '`🚫 Solo el owner principal puede remover`' },
             { quoted: m }
         )
     }
