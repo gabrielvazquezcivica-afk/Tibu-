@@ -1,69 +1,114 @@
-let handler = async (m, { conn, text, usedPrefix, command }) => {
+import yts from 'yt-search'
+import { sendList } from '../lib/sendList.js'
+import config from '../config.js'
+
+let handler = {}
+
+handler.run = async (sock, m, args) => {
+
+    const from = m.key.remoteJid
+    const query = args.join(' ').trim()
+
+    if (!query) {
+        return sock.sendMessage(from, {
+            text:
+`🎵 \`PLAYLIST\`
+
+Busca canciones o videos de YouTube.
+
+Ejemplo:
+.playlist mc davo
+.playlist canserbero
+
+> ${config.BOT_NAME}`
+        }, { quoted: m })
+    }
+
     try {
-        // 🔍 Busca SOLO playlists en YouTube
-        let result = await yts(text, { type: 'playlist' })
-        let ytres = result.playlists
 
-        if (ytres.length === 0) throw 'No se encontraron listas de reproducción 😿'
+        console.log('PLAYLIST INICIO')
 
-        let listSections = []
-        for (let pl of ytres) {
-            listSections.push({
-                title: `${htki} 📻 𝙋𝙇𝘼𝙔𝙇𝙄𝙎𝙏 ${htka}`,
-                rows: [
-                    {
-                        header: '🎵 𝘼𝙐𝘿𝙄𝙊 𝙏𝙊𝘿𝙊',
-                        title: "",
-                        description: `${pl.title}\n📊 ${pl.videoCount} canciones`,
-                        id: `${usedPrefix}ytplmp3 ${pl.url}`
-                    },
-                    {
-                        header: '🎬 𝙑𝙄𝘿𝙀𝙊 𝙏𝙊𝘿𝙊',
-                        title: "",
-                        description: `${pl.title}\n📊 ${pl.videoCount} videos`,
-                        id: `${usedPrefix}ytplmp4 ${pl.url}`
-                    },
-                    {
-                        header: '📄 𝘼𝙐𝘿𝙄𝙊 𝘿𝙊𝘾',
-                        title: "",
-                        description: `${pl.title}\n📊 ${pl.videoCount} archivos`,
-                        id: `${usedPrefix}ytplmp3doc ${pl.url}`
-                    },
-                    {
-                        header: '📄 𝙑𝙄𝘿𝙀𝙊 𝘿𝙊𝘾',
-                        title: "",
-                        description: `${pl.title}\n📊 ${pl.videoCount} archivos`,
-                        id: `${usedPrefix}ytplmp4doc ${pl.url}`
-                    }
-                ]
-            })
+        await sock.sendMessage(from, {
+            react: {
+                text: '🔎',
+                key: m.key
+            }
+        })
+
+        console.log('BUSCANDO:', query)
+
+        const result = await yts(query)
+
+        console.log('RESULTADO OBTENIDO')
+
+        const videos = result.videos.slice(0, 10)
+
+        console.log('VIDEOS:', videos.length)
+
+        if (!videos.length) {
+            return sock.sendMessage(from, {
+                text: '`❌ No encontré resultados`'
+            }, { quoted: m })
         }
 
-        // 📋 Envía el menú interactivo
-        await conn.sendList(m.chat, 
-            `${htki} *📻 𝙍𝙀𝙎𝙐𝙇𝙏𝘼𝘿𝙊𝙎 𝙋𝙇𝘼𝙔𝙇𝙄𝙎𝙏* ${htka}\n`, 
-            `\n🔎 Búsqueda: ${text}`, 
-            `𝗩 𝗘 𝗥`, 
-            listSections, 
-            fkontak
+        const sections = [
+            {
+                title: '🎵 RESULTADOS',
+                rows: videos.map(v => ({
+                    header: 'YOUTUBE',
+                    title: v.title,
+                    description: `${v.timestamp} • ${v.author?.name || 'Desconocido'}`,
+                    id: `.ytmp3 ${v.url}`
+                }))
+            }
+        ]
+
+        console.log('SECCIONES CREADAS')
+        console.log(JSON.stringify(sections, null, 2))
+
+        console.log('ANTES DEL SENDLIST')
+
+        await sendList(
+            sock,
+            from,
+            'TIBU BOT',
+            `🔎 Resultados para: ${query}`,
+            'ABRIR RESULTADOS',
+            sections
         )
+
+        console.log('DESPUES DEL SENDLIST')
+
+        await sock.sendMessage(from, {
+            react: {
+                text: '✅',
+                key: m.key
+            }
+        })
+
     } catch (e) {
-        await conn.sendButton(m.chat, 
-            `\n${wm}`, 
-            lenguajeGB['smsMalError3']() + '#report ' + usedPrefix + command, 
-            null, 
-            [[lenguajeGB.smsMensError1(), `#reporte ${lenguajeGB['smsMensError2']()} *${usedPrefix + command}*`]], 
-            null, 
-            null, 
-            m
-        )
-        console.log('❌ Error Playlist:', e)
+
+        console.log('PLAYLIST ERROR:')
+        console.log(e)
+
+        await sock.sendMessage(from, {
+            react: {
+                text: '❌',
+                key: m.key
+            }
+        })
+
+        await sock.sendMessage(from, {
+            text:
+`❌ Error
+
+${e.message}`
+        }, { quoted: m })
     }
 }
 
-
-handler.command = ['playlist', 'ytplaylist', 'listareproduccion']
-handler.help = ['playlist <nombre']
+handler.command = ['playlist']
+handler.help = ['playlist <texto>']
 handler.tags = ['descargas']
 handler.menu = true
 
