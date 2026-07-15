@@ -38,7 +38,7 @@ handler.run = async (sock, m, args) => {
         })
         return sock.sendMessage(
             from,
-            { text: '`🚫 Solo capitanes pueden agregar`' },
+            { text: '`🚫 Solo el owner principal puede agregar`' },
             { quoted: m }
         )
     }
