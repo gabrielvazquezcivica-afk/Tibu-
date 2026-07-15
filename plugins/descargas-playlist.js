@@ -52,16 +52,15 @@ Ejemplo:
         }
 
         const sections = [
-            {
-                title: '🎵 RESULTADOS',
-                rows: videos.map(v => ({
-                    header: 'YOUTUBE',
-                    title: v.title,
-                    description: `${v.timestamp} • ${v.author?.name || 'Desconocido'}`,
-                    id: `.ytmp3 ${v.url}`
-                }))
-            }
-        ]
+{
+    title: '🎵 RESULTADOS',
+    rows: videos.map(v => ({
+        title: v.title,
+        rowId: `.ytmp3 ${v.url}`,
+        description: v.timestamp
+    }))
+}
+]
 
         console.log('SECCIONES CREADAS')
         console.log(JSON.stringify(sections, null, 2))
