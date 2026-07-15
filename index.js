@@ -353,6 +353,13 @@ if (bloqueado) continue
     continue
 }
 
+const texto =
+  m.message?.conversation ||
+  m.message?.extendedTextMessage?.text ||
+  m.message?.imageMessage?.caption ||
+  m.message?.videoMessage?.caption ||
+  ''
+
     if (!texto.startsWith(config.PREFIX)) {
       const from = m.key.remoteJid
 
