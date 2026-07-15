@@ -53,7 +53,7 @@ handler.run = async (sock, m) => {
     })
 
     return sock.sendMessage(from, {
-      text: '`🚫 Solo capitanes pueden desbanear`'
+      text: '`🚫 Solo owners pueden desbanear`'
     }, { quoted: m })
   }
 
