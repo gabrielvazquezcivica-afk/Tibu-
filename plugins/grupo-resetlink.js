@@ -41,7 +41,7 @@ handler.run = async (sock, m) => {
         })
 
         return sock.sendMessage(from, {
-            text: '`🚫 Solo capitanes pueden resetear el radar`'
+            text: '`🚫 Solo admins pueden resetear el radar`'
         }, { quoted: m })
     }
 
