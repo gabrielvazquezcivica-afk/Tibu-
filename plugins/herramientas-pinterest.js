@@ -121,7 +121,7 @@ Ejemplo:
 
 handler.command = ['pin', 'pinterest']
 handler.help = ['pinterest <texto>']
-handler.tags = ['buscadores']
+handler.tags = ['herramientas']
 handler.menu = true
 
 export default handler
