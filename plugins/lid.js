@@ -63,7 +63,7 @@ handler.run = async (sock, m, args) => {
 
 handler.command = ['lid', 'idlid']
 handler.help = ['lid']
-handler.tags = ['tools']
+handler.tags = ['informacion']
 handler.menu = true
 
 export default handler
