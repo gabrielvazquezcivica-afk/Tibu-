@@ -36,11 +36,13 @@ Ejemplo:
 
         const apiKey = 'sasuke'
 
-        const search = await fetch(
-            `https://api.evogb.org/search/apk?query=${encodeURIComponent(query)}&key=${apiKey}`
-        )
+        const search =
+            await fetch(
+                `https://api.evogb.org/search/apk?query=${encodeURIComponent(query)}&key=${apiKey}`
+            )
 
-        const data = await search.json()
+        const data =
+            await search.json()
 
         if (
             !data?.status ||
@@ -68,39 +70,25 @@ Ejemplo:
 
         const app = data.data
 
-        const caption =
-`╭━━━〔 📦 𝐀𝐏𝐊 𝐃𝐎𝐖𝐍𝐋𝐎𝐀𝐃 〕━━━⬣
-┃ 📱 Nombre:
-┃ ${app.name || 'Desconocido'}
-┃
-┃ 👨‍💻 Desarrollador:
-┃ ${app.developer || app.author || 'No disponible'}
-┃
-┃ 📦 Tamaño:
-┃ ${app.size || 'No disponible'}
-┃
-┃ 📅 Última actualización:
-┃ ${app.lastUpdated || 'No disponible'}
-┃
-┃ 📄 Información:
-┃ ${app.description || app.packageName || 'No disponible'}
-┃
-┃ ⚙️ Versión:
-┃ ${app.version || 'No disponible'}
-┃
-┃ ⏳ Preparando APK...
-╰━━━━━━━━━━━━━━━━⬣`
-
         await sock.sendMessage(
             from,
             {
                 image: {
-                    url:
-                        app.icon ||
-                        app.banner ||
-                        app.image
+                    url: app.banner
                 },
-                caption
+                caption:
+`╭━━━〔 📦 𝐀𝐏𝐊 〕━━━⬣
+┃ 📱 Nombre:
+┃ ${app.name}
+┃
+┃ ⚖️ Tamaño:
+┃ ${app.size}
+┃
+┃ 📅 Actualizado:
+┃ ${app.lastUpdated}
+┃
+┃ ⏳ Preparando APK...
+╰━━━━━━━━━━━━━━━━⬣`
             },
             {
                 quoted: m
@@ -114,16 +102,19 @@ Ejemplo:
             }
         })
 
-        const apk = await fetch(
-            `https://api.delirius.store/download/apk?query=${encodeURIComponent(app.name)}`
-        )
+        const apk =
+            await fetch(
+                `https://api.delirius.store/download/apk?query=${encodeURIComponent(app.name)}`
+            )
 
-        const apkData = await apk.json()
+        const apkData =
+            await apk.json()
 
         if (
             !apkData?.status ||
             !apkData?.data?.download
         ) {
+
             throw new Error(
                 'No se pudo obtener el APK'
             )
