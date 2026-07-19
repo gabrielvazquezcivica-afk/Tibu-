@@ -9,6 +9,7 @@ let handler = {}
 handler.run = async (sock, m, args) => {
 
     const from = m.key.remoteJid
+
     const remitente =
         m.key.participant ||
         m.key.remoteJid
@@ -61,7 +62,7 @@ Uso:
 
 .aviso2 <link> mensaje
 
-O responde una imagen/video/documento:
+o respondiendo un mensaje:
 
 .aviso2 <link>`
             },
@@ -83,93 +84,78 @@ O responde una imagen/video/documento:
         const codigo =
             link.split('/').pop()
 
-        const info =
-            await sock.groupGetInviteInfo(
-                codigo
-            )
+        let grupoId
 
-        const grupoId = info.id
+        try {
+
+            grupoId =
+                await sock.groupAcceptInvite(
+                    codigo
+                )
+
+        } catch {
+
+            const grupos =
+                await sock.groupFetchAllParticipating()
+
+            grupoId =
+                Object.keys(grupos).find(
+                    id =>
+                        grupos[id].inviteCode === codigo
+                )
+        }
+
+        if (!grupoId) {
+            throw new Error(
+                'No pude entrar al grupo'
+            )
+        }
 
         const metadata =
             await sock.groupMetadata(
                 grupoId
             )
 
-        const participantes =
-            metadata.participants || []
-
         const mentions =
-            participantes.map(
+            metadata.participants.map(
                 p => p.id
             )
 
-        const mensaje =
+        let aviso =
             args.slice(1).join(' ').trim()
 
-        const quoted =
-            m.message?.extendedTextMessage
-                ?.contextInfo?.quotedMessage
+        if (!aviso) {
 
-        const stanzaId =
-            m.message?.extendedTextMessage
-                ?.contextInfo?.stanzaId
+            aviso =
+                m.message?.extendedTextMessage
+                    ?.contextInfo
+                    ?.quotedMessage
+                    ?.conversation ||
 
-        const participant =
-            m.message?.extendedTextMessage
-                ?.contextInfo?.participant
+                m.message?.extendedTextMessage
+                    ?.contextInfo
+                    ?.quotedMessage
+                    ?.extendedTextMessage
+                    ?.text ||
 
-        // TEXTO
-
-        if (mensaje) {
-
-            await sock.sendMessage(
-                grupoId,
-                {
-                    text:
-`📢 AVISO GENERAL
-
-${mensaje}`,
-                    mentions
-                }
-            )
+                ''
         }
 
-        // REENVIAR MENSAJE RESPONDIDO
+        if (!aviso) {
+            aviso =
+                '📢 Atención a todos.'
+        }
 
-        if (quoted) {
+        await sock.sendMessage(
+            grupoId,
+            {
+                text:
+`📢 *AVISO GENERAL*
 
-            const fakeMsg = {
-                key: {
-                    remoteJid: grupoId,
-                    fromMe: false,
-                    id: stanzaId,
-                    participant
-                },
-                message: quoted
+${aviso}`,
+                mentions
             }
-
-            await sock.copyNForward(
-                grupoId,
-                fakeMsg,
-                true
-            )
-        }
-
-        // SI NO HAY TEXTO NI RESPUESTA
-
-        if (!mensaje && !quoted) {
-
-            await sock.sendMessage(
-                grupoId,
-                {
-                    text:
-`📢 AVISO GENERAL
-
-Atención todos.`,
-                    mentions
-                }
-            )
-        }
+        )
 
         await sock.sendMessage(from, {
             react: {
@@ -182,13 +168,11 @@ Atención todos.`,
             from,
             {
                 text:
-`📢 Aviso enviado
+`✅ Aviso enviado a:
 
-👥 Grupo:
 ${metadata.subject}
 
-👤 Miembros:
-${participantes.length}`
+👥 Participantes: ${mentions.length}`
             },
             {
                 quoted: m
@@ -225,7 +209,7 @@ ${e.message}`
 }
 
 handler.command = ['aviso2']
-handler.help = ['aviso2 <link>']
+handler.help = ['aviso2 <link> mensaje']
 handler.tags = ['owner']
 handler.menu = true
 
