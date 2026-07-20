@@ -105,7 +105,7 @@ handler.run = async (sock, m, args) => {
     }
 }
 
-handler.command = ['wallpaper','wp','hd']
+handler.command = ['wallpaper','wp']
 handler.help = ['wallpaper <texto>']
 handler.tags = ['herramientas']
 handler.menu = true
