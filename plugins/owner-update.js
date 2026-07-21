@@ -85,8 +85,8 @@ handler.run = async (sock, m) => {
         }, { quoted: m })
 
         setTimeout(() => {
-            exec('pm2 restart Tibu')
-        }, 1500)
+    process.exit(0)
+}, 1500)
     })
 }
 
