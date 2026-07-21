@@ -68,8 +68,8 @@ handler.run = async (sock, m) => {
     )
 
     setTimeout(() => {
-        exec('pm2 restart Tibu')
-    }, 1500)
+    process.exit(0)
+}, 1500)
 }
 
 handler.command = ['restart', 'reiniciar']
