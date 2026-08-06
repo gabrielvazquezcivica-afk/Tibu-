@@ -1,113 +1,72 @@
 import config from '../config.js'
+import fetch from 'node-fetch'
 import yts from 'yt-search'
-import axios from 'axios'
 
 let handler = {}
 
 handler.run = async (sock, m, args) => {
     const from = m.key.remoteJid
-    const text = args.join(' ').trim()
+    const busqueda = args.join(' ').trim()
 
-    if (!text) {
-        await sock.sendMessage(from, {
-            react: { text: '🎵', key: m.key }
-        })
-
+    if (!busqueda) {
+        await sock.sendMessage(from, { react: { text: '🎵', key: m.key } })
         return sock.sendMessage(from, {
-            text:
-                '`🎵 Escribe una canción para buscar`\n\n' +
-                'Ej:\n.play Bad Bunny'
+            text: '`🎵 Escribe el nombre de la canción`\n\nEjemplo:\n.play banda ms - el gusto'
         }, { quoted: m })
     }
 
-    await sock.sendMessage(from, {
-        react: { text: '🎧', key: m.key }
-    })
+    await sock.sendMessage(from, { react: { text: '🔎', key: m.key } })
 
     try {
-        const search = await yts(text)
+        const resultado = await yts(busqueda)
+        if (!resultado.videos.length) throw new Error('Sin resultados')
+        const cancion = resultado.videos[0]
 
-        if (!search?.videos?.length) {
-            await sock.sendMessage(from, {
-                react: { text: '❌', key: m.key }
-            })
+        const api = 'https://api.evogb.org'
+        const key = 'sasuke'
+        const res = await fetch(`${api}/dl/ytmp3?url=${encodeURIComponent(cancion.url)}&key=${key}`)
+        const json = await res.json()
 
-            return sock.sendMessage(from, {
-                text: '`❌ No encontré resultados`'
-            }, { quoted: m })
-        }
-
-        const video = search.videos[0]
-
-        const {
-            title,
-            url,
-            thumbnail,
-            timestamp,
-            views,
-            author
-        } = video
-
-        const api =
-            `https://api.delirius.store/download/ytmp3?url=${encodeURIComponent(url)}`
-
-        const { data } = await axios.get(api)
-
-        if (!data?.status || !data?.data?.download) {
-            throw new Error('API inválida')
-        }
-
-        const audio =
-            data.data.download?.url ||
-            data.data.download
+        if (!json.status || !json.data?.dl) throw new Error('No se pudo descargar')
+        const info = json.data
 
         const caption =
 `╭──────────────⬣
 │ 𝐓𝐈𝐁𝐔 𝐏𝐋𝐀𝐘 🎧
 ├──────────────
-│ 🎵 ${title}
+│ 🎵 ${info.title || cancion.title}
 │
-│ 👤 ${author?.name || 'Desconocido'}
+│ ⏱ ${info.duration || cancion.timestamp}
 │
-│ ⏱ ${timestamp}
-│
-│ 👁 ${views.toLocaleString()}
+│ 💽 MP3 128kbps
 │
 │ 📥 Descargando...
 ╰──────────────⬣
 > ${config.BOT_NAME}`
 
         await sock.sendMessage(from, {
-            image: { url: thumbnail },
+            image: { url: info.thumbnail || cancion.thumbnail },
             caption
         }, { quoted: m })
 
         await sock.sendMessage(from, {
-            audio: { url: audio },
+            audio: { url: info.dl },
             mimetype: 'audio/mpeg',
-            fileName: `${title}.mp3`,
+            fileName: `${info.title || cancion.title}.mp3`,
             ptt: false
         }, { quoted: m })
 
-        await sock.sendMessage(from, {
-            react: { text: '✅', key: m.key }
-        })
+        await sock.sendMessage(from, { react: { text: '✅', key: m.key } })
 
     } catch (e) {
         console.log('PLAY ERROR:', e)
-
-        await sock.sendMessage(from, {
-            react: { text: '❌', key: m.key }
-        })
-
-        await sock.sendMessage(from, {
-            text: '`❌ Error al descargar la canción`'
-        }, { quoted: m })
+        await sock.sendMessage(from, { react: { text: '❌', key: m.key } })
+        await sock.sendMessage(from, { text: '`❌ No se encontró o no se pudo descargar la canción`' }, { quoted: m })
     }
 }
 
 handler.command = ['play']
-handler.help = ['play <texto>']
+handler.help = ['play <nombre de la canción>']
 handler.tags = ['descargas']
 handler.menu = true
 
