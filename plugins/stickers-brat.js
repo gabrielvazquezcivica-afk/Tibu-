@@ -14,7 +14,8 @@ handler.run = async (sock, m, args) => {
 
     if (!texto) {
         return sock.sendMessage(from, {
-            text: `⚡ Escribe un texto.\n\nEjemplo:\n${config.PREFIX}brat Hola mundo`
+            text: `⚡ Escribe un texto.\n
+Ejemplo:\n${config.PREFIX}brat Hola mundo`
         }, { quoted: m })
     }
 
@@ -23,8 +24,8 @@ handler.run = async (sock, m, args) => {
     try {
         const formatted = wrap(texto, 28)
         
-        // ✅ API nueva y funcional
-        const url = `https://api.alyachan.dev/api/brat?text=${encodeURIComponent(formatted)}`
+        // ✅ CONFIGURACIÓN FINAL Y CORRECTA: Fondo BLANCO, Letras NEGRAS
+        const url = `https://api.lempi.lat/tools/brat?text=${encodeURIComponent(formatted)}&color=blanco&fondo=negro&format=image&apikey=lem948`
 
         const res = await axios.get(url, { responseType: 'arraybuffer' })
 
