@@ -97,7 +97,7 @@ ${diagnostico}
 
 handler.command = ['gay', 'gayometro']
 handler.help = ['gay @usuario']
-handler.tags = ['juegos']
+handler.tags = ['diversión']
 handler.menu = true
 
 export default handler
