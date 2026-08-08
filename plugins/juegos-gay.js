@@ -5,21 +5,21 @@ let handler = {}
 handler.run = async (sock, m, args) => {
     const from = m.key.remoteJid
 
-    let usuario =
-        m.message?.extendedTextMessage?.contextInfo?.mentionedJid?.[0]
+    let usuario = null
 
-    if (!usuario && m.quoted) {
-        usuario =
-            m.quoted.key?.participant ||
-            m.quoted.participant
+    const mentioned =
+        m.message?.extendedTextMessage?.contextInfo?.mentionedJid
+
+    if (mentioned?.length) {
+        usuario = mentioned[0]
     }
 
-    if (!usuario && args[0]) {
-        const numero = args[0].replace(/[^0-9]/g, '')
-
-        if (numero) {
-            usuario = `${numero}@s.whatsapp.net`
-        }
+    if (!usuario) {
+        usuario =
+            m.message?.extendedTextMessage?.contextInfo?.participant ||
+            m.quoted?.key?.participant ||
+            m.quoted?.participant ||
+            null
     }
 
     if (!usuario) {
@@ -30,19 +30,18 @@ handler.run = async (sock, m, args) => {
             }
         })
 
-        return sock.sendMessage(
-            from,
-            {
-                text:
+        return sock.sendMessage(from, {
+            text:
 `🏳️‍🌈 𝐆𝐀𝐘𝐌𝐄𝐓𝐑𝐎 𝟑𝟎𝟎𝟎
 
-👤 Menciona a alguien para analizarlo.
+👤 Menciona a alguien o responde a su mensaje.
 
-Ejemplo:
-.gay @usuario`
-            },
-            { quoted: m }
-        )
+Ejemplos:
+.gay @usuario
+
+O responde un mensaje con:
+.gay`
+        }, { quoted: m })
     }
 
     const porcentaje = Math.floor(Math.random() * 101)
@@ -50,37 +49,20 @@ Ejemplo:
     let diagnostico
 
     if (porcentaje <= 10) {
-        diagnostico =
-`🗿 Resultado tranquilo.
-💪 El gayómetro apenas detectó señales.`
+        diagnostico = '🗿 Casi nada. El gayómetro apenas reaccionó.'
     } else if (porcentaje <= 30) {
-        diagnostico =
-`😏 Hay pequeñas sospechas...
-🔎 La investigación continúa.`
+        diagnostico = '😏 Hay sospechas, pero todavía no hay pruebas.'
     } else if (porcentaje <= 50) {
-        diagnostico =
-`👀 Resultado sospechoso.
-📊 El laboratorio no sabe qué pensar.`
+        diagnostico = '👀 El resultado está bastante sospechoso.'
     } else if (porcentaje <= 70) {
-        diagnostico =
-`🌈 El gayómetro está subiendo.
-💅 Se detectaron varias señales.`
+        diagnostico = '🌈 El gayómetro empieza a calentarse.'
     } else if (porcentaje <= 90) {
-        diagnostico =
-`🚨 ¡ALERTA MÁXIMA!
-
-💅 El gayómetro está echando humo.
-🌈 Demasiado arcoíris detectado.`
+        diagnostico = '🚨 ¡ALERTA! El gayómetro está echando humo.'
     } else {
-        diagnostico =
-`🌈💀 RESULTADO CRÍTICO
-
-🔥 ¡EL GAYÓMETRO EXPLOTÓ!
-💅 Ni el laboratorio puede explicar esto.
-🚨 Se recomienda apagar el dispositivo.`
+        diagnostico = '🌈💀 ¡RESULTADO CRÍTICO! El gayómetro acaba de explotar.'
     }
 
-    const nombre = usuario.split('@')[0]
+    const numero = usuario.split('@')[0]
 
     await sock.sendMessage(from, {
         react: {
@@ -94,7 +76,7 @@ Ejemplo:
    🏳️‍🌈 𝐆𝐀𝐘𝐌𝐄𝐓𝐑𝐎 𝟑𝟎𝟎𝟎
 ╰━━━━━━━━━━━━━━━━━━╯
 
-👤 Analizado: @${nombre}
+👤 Analizado: @${numero}
 
 🌈 𝐏𝐎𝐑𝐂𝐄𝐍𝐓𝐀𝐉𝐄:
         ${porcentaje}%
@@ -102,21 +84,15 @@ Ejemplo:
 ${diagnostico}
 
 ━━━━━━━━━━━━━━━━━━
-🧪 Análisis 100% científico*
-━━━━━━━━━━━━━━━━━━
+🧪 Ciencia 100% dudosa
+😂 No se aceptan reclamaciones
 
-*Bueno... probablemente no.
+> ${config.BOT_NAME} | Laboratorio Marino`
 
-🦈 ${config.BOT_NAME} | Laboratorio Marino`
-
-    await sock.sendMessage(
-        from,
-        {
-            text: texto,
-            mentions: [usuario]
-        },
-        { quoted: m }
-    )
+    await sock.sendMessage(from, {
+        text: texto,
+        mentions: [usuario]
+    }, { quoted: m })
 }
 
 handler.command = ['gay', 'gayometro']
