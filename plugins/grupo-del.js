@@ -78,11 +78,6 @@ handler.run = async (sock, m) => {
         }, { quoted: m })
     }
 
-    try {
-        await sock.sendMessage(from, {
-            react: { text: '🗑️', key: m.key }
-        })
-
         // borrar mensaje respondido
         await sock.sendMessage(from, {
             delete: {
