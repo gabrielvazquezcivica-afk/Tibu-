@@ -1,32 +1,39 @@
-import config from '../config.js'
-
 let handler = {}
 
 handler.run = async (sock, m) => {
+
     const from = m.key.remoteJid
     const sender = m.key.participant || m.key.remoteJid
 
-    if (!from.endsWith('@g.us')) {
-        await sock.sendMessage(from, {
-            react: { text: '🌊', key: m.key }
-        })
-
-        return sock.sendMessage(from, {
-            text: '`🌊 Solo funciona en grupos`'
-        }, { quoted: m })
+    // Solo grupos
+    if (!from?.endsWith('@g.us')) {
+        return sock.sendMessage(
+            from,
+            {
+                text: '`🌊 Solo funciona en grupos`'
+            },
+            { quoted: m }
+        )
     }
 
+    // Obtener información del grupo
     let metadata
+
     try {
         metadata = await sock.groupMetadata(from)
-    } catch {
-        return sock.sendMessage(from, {
-            text: '`❌ No pude leer el grupo`'
-        }, { quoted: m })
+    } catch (e) {
+        return sock.sendMessage(
+            from,
+            {
+                text: '`❌ No pude leer el grupo`'
+            },
+            { quoted: m }
+        )
     }
 
     const participantes = metadata.participants || []
 
+    // Comprobar si quien usa .del es admin
     const userInfo = participantes.find(
         p => p.id === sender || p.jid === sender
     )
@@ -36,16 +43,21 @@ handler.run = async (sock, m) => {
         userInfo?.admin === 'superadmin'
 
     if (!isAdmin) {
-        await sock.sendMessage(from, {
-            react: { text: '🚫', key: m.key }
-        })
-
-        return sock.sendMessage(from, {
-            text: '`🚫 Solo admins pueden usarlo`'
-        }, { quoted: m })
+        return sock.sendMessage(
+            from,
+            {
+                text: '`🚫 Solo admins pueden usarlo`'
+            },
+            { quoted: m }
+        )
     }
 
-    const botId = sock.user.id.split(':')[0] + '@s.whatsapp.net'
+    // Comprobar si el bot es admin
+    const botNumber = sock.user?.id?.split(':')[0]
+
+    const botId = botNumber
+        ? `${botNumber}@s.whatsapp.net`
+        : null
 
     const botInfo = participantes.find(
         p => p.id === botId || p.jid === botId
@@ -56,53 +68,68 @@ handler.run = async (sock, m) => {
         botInfo?.admin === 'superadmin'
 
     if (!botAdmin) {
-        await sock.sendMessage(from, {
-            react: { text: '⚠️', key: m.key }
-        })
-
-        return sock.sendMessage(from, {
-            text: '`⚠️ No soy admin aquí`'
-        }, { quoted: m })
+        return sock.sendMessage(
+            from,
+            {
+                text: '`⚠️ No soy admin aquí`'
+            },
+            { quoted: m }
+        )
     }
 
+    // Obtener mensaje respondido
     const ctx =
         m.message?.extendedTextMessage?.contextInfo
 
     if (!ctx?.stanzaId) {
-        await sock.sendMessage(from, {
-            react: { text: '❌', key: m.key }
-        })
-
-        return sock.sendMessage(from, {
-            text: '`❌ Responde al mensaje a borrar`'
-        }, { quoted: m })
+        return sock.sendMessage(
+            from,
+            {
+                text: '`❌ Responde al mensaje a borrar`'
+            },
+            { quoted: m }
+        )
     }
 
-        // borrar mensaje respondido
-        await sock.sendMessage(from, {
-            delete: {
-                remoteJid: from,
-                fromMe: false,
-                id: ctx.stanzaId,
-                participant: ctx.participant
-            }
-        })
+    try {
 
-        // borrar comando .del
-        await sock.sendMessage(from, {
-            delete: m.key
-        })
+        // Borrar mensaje respondido
+        await sock.sendMessage(
+            from,
+            {
+                delete: {
+                    remoteJid: from,
+                    fromMe: false,
+                    id: ctx.stanzaId,
+                    participant: ctx.participant
+                }
+            }
+        )
+
+        // Borrar el comando .del
+        try {
+            await sock.sendMessage(
+                from,
+                {
+                    delete: m.key
+                }
+            )
+        } catch {}
 
     } catch (e) {
-        console.log('DEL ERROR:', e)
 
-        await sock.sendMessage(from, {
-            react: { text: '❌', key: m.key }
-        })
+        console.log(
+            'DEL ERROR:',
+            e?.message || e
+        )
 
-        await sock.sendMessage(from, {
-            text: '`❌ No pude borrar el mensaje`'
-        }, { quoted: m })
+        return sock.sendMessage(
+            from,
+            {
+                text: '`❌ No pude borrar el mensaje`'
+            },
+            { quoted: m }
+        )
     }
 }
 
