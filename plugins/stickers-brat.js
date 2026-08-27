@@ -4,7 +4,7 @@ import { exec } from 'child_process'
 
 const API_KEY = 'lem_87eb6b2f8d1fd1a413de398cf37608cf36b68691'
 
-const handler = async (m, { conn, text, usedPrefix, command }) => {
+handler.run = async (sock, m, args) => {
     const final = text?.trim() || m.quoted?.text?.trim()
 
     if (!final) {
