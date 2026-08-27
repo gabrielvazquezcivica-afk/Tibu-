@@ -290,203 +290,333 @@ sock.ev.on('group-participants.update', async update => {
   }
 })
 
-    // 📩 MENSAJES
-sock.ev.on('messages.upsert', async ({ messages, type }) => {
-  if (type !== 'notify') return
+  // 📩 MENSAJES
+sock.ev.on('messages.upsert', ({ messages, type }) => {
+    if (type !== 'notify') return
 
-  for (const m of messages) {
-    if (!m || m.key.fromMe || !m.message) continue
+    for (const m of messages) {
+        if (!m || m.key.fromMe || !m.message) continue
+
+        procesarMensaje(sock, m).catch(err => {
+            console.error('MESSAGE ERROR:', err)
+        })
+    }
+})
+
+async function procesarMensaje(sock, m) {
 
     const remitente = cache.limpiarJid(
-      m.key.participant || m.key.remoteJid
+        m.key.participant || m.key.remoteJid
     )
 
+    // 🔇 MUTE
     const muted = await muteWatcher(sock, m)
-    if (muted) continue
+    if (muted) return
 
+    // 🚫 ANTILINK
     const bloqueado = await antiLink(sock, m)
-if (bloqueado) continue
+    if (bloqueado) return
+
+
+    // ==================================================
+    // 🎵 REACCIONES DE PLAYLIST
+    // ==================================================
 
     if (m.message?.reactionMessage) {
 
-    const reaction = m.message.reactionMessage.text
-    const targetId = m.message.reactionMessage.key?.id
+        const reaction =
+            m.message.reactionMessage.text
 
-    const data = global.playlistCache?.[targetId]
+        const targetId =
+            m.message.reactionMessage.key?.id
 
-    if (!data) continue
+        const data =
+            global.playlistCache?.[targetId]
 
-    // 🔄 SIGUIENTE PÁGINA
-    if (reaction === '🔄') {
+        if (!data) return
 
-        const nextPage = data.page + 1
 
-        const start = nextPage * 9
-        const end = start + 9
+        // 🔄 SIGUIENTE PÁGINA
+        if (reaction === '🔄') {
 
-        const videos = data.allVideos.slice(start, end)
+            const nextPage = data.page + 1
 
-        if (!videos.length) {
+            const start = nextPage * 9
+            const end = start + 9
 
-            await sock.sendMessage(
-                m.key.remoteJid,
-                {
-                    text: '❌ No hay más resultados.'
-                }
-            )
+            const videos =
+                data.allVideos.slice(start, end)
 
-            continue
-        }
+            if (!videos.length) {
 
-        try {
-
-            await sock.sendMessage(
-                m.key.remoteJid,
-                {
-                    delete: {
-                        remoteJid: m.key.remoteJid,
-                        fromMe: true,
-                        id: targetId
+                await sock.sendMessage(
+                    m.key.remoteJid,
+                    {
+                        text: '❌ No hay más resultados.'
                     }
-                }
-            )
+                )
 
-        } catch {}
+                return
+            }
 
-        const emojis = [
-            '1️⃣','2️⃣','3️⃣',
-            '4️⃣','5️⃣','6️⃣',
-            '7️⃣','8️⃣','9️⃣'
-        ]
+            try {
 
-        let texto =
+                await sock.sendMessage(
+                    m.key.remoteJid,
+                    {
+                        delete: {
+                            remoteJid: m.key.remoteJid,
+                            fromMe: true,
+                            id: targetId
+                        }
+                    }
+                )
+
+            } catch {}
+
+
+            const emojis = [
+                '1️⃣','2️⃣','3️⃣',
+                '4️⃣','5️⃣','6️⃣',
+                '7️⃣','8️⃣','9️⃣'
+            ]
+
+            let texto =
 `🎵 RESULTADOS PARA: ${data.query.toUpperCase()}
 
 `
 
-        videos.forEach((v, i) => {
-            texto += `${emojis[i]} ${v.title}\n`
-            texto += `> ⏱️ ${v.timestamp}\n\n`
-        })
+            videos.forEach((v, i) => {
 
-        texto += '🔄 Más resultados\n'
-        texto += '🎧 Reacciona con un número para descargar.'
+                texto +=
+                    `${emojis[i]} ${v.title}\n`
 
-        const nuevoMsg = await sock.sendMessage(
-            m.key.remoteJid,
-            { text: texto }
-        )
+                texto +=
+                    `> ⏱️ ${v.timestamp}\n\n`
+            })
 
-        global.playlistCache[nuevoMsg.key.id] = {
-            query: data.query,
-            page: nextPage,
-            allVideos: data.allVideos
+            texto +=
+                '🔄 Más resultados\n'
+
+            texto +=
+                '🎧 Reacciona con un número para descargar.'
+
+
+            const nuevoMsg =
+                await sock.sendMessage(
+                    m.key.remoteJid,
+                    {
+                        text: texto
+                    }
+                )
+
+
+            global.playlistCache[
+                nuevoMsg.key.id
+            ] = {
+                query: data.query,
+                page: nextPage,
+                allVideos: data.allVideos
+            }
+
+
+            delete global.playlistCache[targetId]
+
+            return
         }
 
-        delete global.playlistCache[targetId]
 
-        continue
+        // 🎧 DESCARGA
+        const videos =
+            data.allVideos.slice(
+                data.page * 9,
+                data.page * 9 + 9
+            )
+
+
+        const mapa = {
+
+            '1️⃣': 0,
+            '2️⃣': 1,
+            '3️⃣': 2,
+            '4️⃣': 3,
+            '5️⃣': 4,
+            '6️⃣': 5,
+            '7️⃣': 6,
+            '8️⃣': 7,
+            '9️⃣': 8,
+
+            '1⃣': 0,
+            '2⃣': 1,
+            '3⃣': 2,
+            '4⃣': 3,
+            '5⃣': 4,
+            '6⃣': 5,
+            '7⃣': 6,
+            '8⃣': 7,
+            '9⃣': 8
+        }
+
+
+        const index = mapa[reaction]
+
+        if (index === undefined) return
+        if (!videos[index]) return
+
+
+        const url =
+            videos[index].url
+
+
+        await runCommand(
+            sock,
+            m,
+            'ytmp3',
+            [url, '--playlist']
+        )
+
+        return
     }
 
-    // DESCARGA
-    const videos = data.allVideos.slice(
-        data.page * 9,
-        data.page * 9 + 9
+
+    // ==================================================
+    // 📝 TEXTO
+    // ==================================================
+
+    const texto =
+        m.message?.conversation ||
+        m.message?.extendedTextMessage?.text ||
+        m.message?.imageMessage?.caption ||
+        m.message?.videoMessage?.caption ||
+        ''
+
+
+    // 📊 CONTADOR DE MENSAJES
+    if (!texto.startsWith(config.PREFIX)) {
+
+        const from = m.key.remoteJid
+
+        if (from.endsWith('@g.us')) {
+
+            const datos =
+                leerContadores()
+
+            if (!datos[from])
+                datos[from] = {}
+
+            if (!datos[from][remitente])
+                datos[from][remitente] = 0
+
+            datos[from][remitente] += 1
+
+            guardarContadores(datos)
+        }
+
+        return
+    }
+
+
+    // 👁️ LEER MENSAJE
+    sock.readMessages([m.key]).catch(() => {})
+
+
+    // ⚙️ COMANDO
+    const sinPrefijo =
+        texto
+            .slice(config.PREFIX.length)
+            .trim()
+
+
+    const [comando, ...args] =
+        sinPrefijo.split(/\s+/)
+
+
+    // 👤 USUARIO
+    const nombreUsuario =
+        m.pushName || 'Desconocido'
+
+
+    // 👥 GRUPO
+    const esGrupo =
+        m.key.remoteJid.endsWith('@g.us')
+
+
+    let nombreGrupo =
+        'Chat Privado'
+
+
+    if (esGrupo) {
+
+        let metadata =
+            cache.groupMeta.get(
+                m.key.remoteJid
+            )
+
+
+        if (!metadata) {
+
+            try {
+
+                metadata =
+                    await sock.groupMetadata(
+                        m.key.remoteJid
+                    )
+
+                cache.groupMeta.set(
+                    m.key.remoteJid,
+                    metadata
+                )
+
+            } catch {}
+        }
+
+
+        nombreGrupo =
+            metadata?.subject ||
+            'Grupo'
+    }
+
+
+    // 📟 CONSOLA
+    console.log(
+        chalk.yellowBright(
+            '╔══════════════════════════════════════╗'
+        )
     )
 
-    const mapa = {
-        '1️⃣': 0, '2️⃣': 1, '3️⃣': 2,
-        '4️⃣': 3, '5️⃣': 4, '6️⃣': 5,
-        '7️⃣': 6, '8️⃣': 7, '9️⃣': 8,
+    console.log(
+        chalk.white(
+            `║ 👤 USUARIO: ${nombreUsuario.padEnd(28)} ║`
+        )
+    )
 
-        '1⃣': 0, '2⃣': 1, '3⃣': 2,
-        '4⃣': 3, '5⃣': 4, '6⃣': 5,
-        '7⃣': 6, '8⃣': 7, '9⃣': 8
-    }
+    console.log(
+        chalk.white(
+            `║ 👥 GRUPO : ${nombreGrupo.padEnd(28)} ║`
+        )
+    )
 
-    const index = mapa[reaction]
+    console.log(
+        chalk.yellowBright(
+            `║ 📥 COMANDO: ${(config.PREFIX + comando).padEnd(30)} ║`
+        )
+    )
 
-    if (index === undefined) continue
-    if (!videos[index]) continue
+    console.log(
+        chalk.yellowBright(
+            '╚══════════════════════════════════════╝\n'
+        )
+    )
 
-    const url = videos[index].url
 
+    // 🚀 EJECUTAR COMANDO
     await runCommand(
         sock,
         m,
-        'ytmp3',
-        [url, '--playlist']
+        comando,
+        args
     )
-
-    continue
 }
-
-const texto =
-  m.message?.conversation ||
-  m.message?.extendedTextMessage?.text ||
-  m.message?.imageMessage?.caption ||
-  m.message?.videoMessage?.caption ||
-  ''
-
-    if (!texto.startsWith(config.PREFIX)) {
-      const from = m.key.remoteJid
-
-      if (from.endsWith('@g.us')) {
-        const datos = leerContadores()
-        if (!datos[from]) datos[from] = {}
-        if (!datos[from][remitente]) datos[from][remitente] = 0
-        datos[from][remitente] += 1
-        guardarContadores(datos)
-      }
-
-      continue
-    }
-
-    sock.readMessages([m.key]).catch(() => {})
-
-    const sinPrefijo = texto.slice(config.PREFIX.length).trim()
-
-const [comando, ...args] = sinPrefijo.split(/\s+/)
-
-const nombreUsuario = m.pushName || 'Desconocido'
-const esGrupo = m.key.remoteJid.endsWith('@g.us')
-
-let nombreGrupo = 'Chat Privado'
-
-if (esGrupo) {
-  let metadata = cache.groupMeta.get(m.key.remoteJid)
-
-  if (!metadata) {
-    try {
-      metadata = await sock.groupMetadata(m.key.remoteJid)
-      cache.groupMeta.set(m.key.remoteJid, metadata)
-    } catch {}
-  }
-
-  nombreGrupo = metadata?.subject || 'Grupo'
-}
-
-console.log(chalk.yellowBright('╔══════════════════════════════════════╗'))
-console.log(
-  chalk.white(
-    `║ 👤 USUARIO: ${nombreUsuario.padEnd(28)} ║`
-  )
-)
-console.log(
-  chalk.white(
-    `║ 👥 GRUPO : ${nombreGrupo.padEnd(28)} ║`
-  )
-)
-console.log(
-  chalk.yellowBright(
-    `║ 📥 COMANDO: ${(config.PREFIX + comando).padEnd(30)} ║`
-  )
-)
-console.log(chalk.yellowBright('╚══════════════════════════════════════╝\n'))
-
-await runCommand(sock, m, comando, args)
-  }
-})
 
     sock.ev.on('connection.update', ({ connection }) => {
       if (connection === 'close') {
