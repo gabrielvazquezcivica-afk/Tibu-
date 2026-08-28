@@ -4,33 +4,43 @@ import { exec } from 'child_process'
 
 const API_KEY = 'lem_87eb6b2f8d1fd1a413de398cf37608cf36b68691'
 
+let handler = {}
+
 handler.run = async (sock, m, args) => {
-    const final = text?.trim() || m.quoted?.text?.trim()
+    const from = m.key.remoteJid
+    const texto = args.join(' ').trim() || m.message?.extendedTextMessage?.contextInfo?.quotedMessage?.conversation?.trim()
 
-    if (!final) {
-        return conn.reply(
-            m.chat,
-            `🌊 *Escribe el texto para crear tu sticker*\n\n> Ejemplo: ${usedPrefix + command} Hola mundo`,
-            m
-        )
+    if (!texto) {
+        return sock.sendMessage(from, {
+            text:
+`🌊 *BRAT*
+
+Escribe el texto para crear tu sticker.
+
+> Ejemplo:
+.brat Hola mundo`
+        }, { quoted: m })
     }
 
-    if (final.length > 35) {
-        return conn.reply(
-            m.chat,
-            `⚠️ *Texto demasiado largo*\n\n> Máximo: *35 caracteres*`,
-            m
-        )
+    if (texto.length > 35) {
+        return sock.sendMessage(from, {
+            text: '⚠️ *Texto demasiado largo*\n\n> Máximo: *35 caracteres*'
+        }, { quoted: m })
     }
 
-    await m.react('🕒')
+    await sock.sendMessage(from, {
+        react: {
+            text: '🕒',
+            key: m.key
+        }
+    })
 
     const id = Date.now()
     const img = `./tibu-brat-${id}.png`
     const webp = `./tibu-brat-${id}.webp`
 
     try {
-        const formatted = wrap(final, 28)
+        const formatted = wrap(texto, 28)
 
         const url =
             `https://api.lempi.lat/tools/brat` +
@@ -60,32 +70,41 @@ handler.run = async (sock, m, args) => {
             )
         })
 
-        await conn.sendMessage(
-            m.chat,
-            {
-                sticker: fs.readFileSync(webp),
-                packname: 'Tibu Bot 🌊',
-                author: 'Tibu'
-            },
-            { quoted: m }
-        )
+        await sock.sendMessage(from, {
+            sticker: fs.readFileSync(webp),
+            packname: 'Tibu Bot 🌊',
+            author: 'Tibu'
+        }, { quoted: m })
 
-        await m.react('✅')
+        await sock.sendMessage(from, {
+            react: {
+                text: '✅',
+                key: m.key
+            }
+        })
 
     } catch (e) {
         console.error('BRAT ERROR:', e)
 
-        await m.react('❌')
+        await sock.sendMessage(from, {
+            react: {
+                text: '❌',
+                key: m.key
+            }
+        })
 
-        await conn.reply(
-            m.chat,
-            '❌ *No se pudo generar el sticker.*',
-            m
-        )
+        await sock.sendMessage(from, {
+            text: '❌ *No se pudo generar el sticker.*'
+        }, { quoted: m })
 
     } finally {
-        if (fs.existsSync(img)) fs.unlinkSync(img)
-        if (fs.existsSync(webp)) fs.unlinkSync(webp)
+        if (fs.existsSync(img)) {
+            fs.unlinkSync(img)
+        }
+
+        if (fs.existsSync(webp)) {
+            fs.unlinkSync(webp)
+        }
     }
 }
 
@@ -105,7 +124,9 @@ function wrap(text, max = 28) {
         }
     }
 
-    if (current) lines.push(current)
+    if (current) {
+        lines.push(current)
+    }
 
     return lines.join('\n')
 }
