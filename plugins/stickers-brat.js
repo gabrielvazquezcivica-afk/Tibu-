@@ -1,6 +1,6 @@
 import axios from 'axios'
 import fs from 'fs'
-import { exec } from 'child_process'
+import { execFile } from 'child_process'
 
 const API_KEY = 'lem_87eb6b2f8d1fd1a413de398cf37608cf36b68691'
 
@@ -20,16 +20,10 @@ handler.run = async (sock, m, args) => {
             text:
 `🌊 *BRAT*
 
-Escribe el texto que quieres convertir en sticker.
+Escribe el texto para crear tu sticker.
 
 > Ejemplo:
-.br at Hola mundo`
-        }, { quoted: m })
-    }
-
-    if (texto.length > 35) {
-        return sock.sendMessage(from, {
-            text: '⚠️ *Texto demasiado largo*\n\n> Máximo: *35 caracteres*'
+.brat Hola mundo`
         }, { quoted: m })
     }
 
@@ -47,35 +41,82 @@ Escribe el texto que quieres convertir en sticker.
 
     try {
 
-        const formatted = wrap(texto, 28)
-
-        const url =
+        // Texto completo, sin límite ni wrap
+        const apiUrl =
             `https://api.lempi.lat/tools/brat` +
-            `?text=${encodeURIComponent(formatted)}` +
+            `?text=${encodeURIComponent(texto)}` +
             `&color=blanco` +
             `&fondo=negro` +
             `&format=image` +
             `&apikey=${API_KEY}`
 
-        const res = await axios.get(url, {
+        // Solicitar Brat a Lempi
+        const respuesta = await axios.get(apiUrl, {
+            timeout: 30000
+        })
+
+        const data = respuesta.data
+
+
+        // Comprobar respuesta de la API
+        if (!data?.status) {
+            throw new Error(
+                data?.mensaje ||
+                data?.message ||
+                data?.error ||
+                'La API no pudo generar el Brat'
+            )
+        }
+
+        // URL de la imagen generada
+        const descarga = data.descarga
+
+        if (!descarga) {
+            throw new Error(
+                'La API no devolvió la URL de descarga'
+            )
+        }
+
+        // Descargar la imagen
+        const imagen = await axios.get(descarga, {
             responseType: 'arraybuffer',
             timeout: 30000
         })
 
-        fs.writeFileSync(img, res.data)
+        const buffer = Buffer.from(imagen.data)
 
+        if (!buffer.length) {
+            throw new Error(
+                'La imagen descargada está vacía'
+            )
+        }
+
+        fs.writeFileSync(img, buffer)
+
+        // Convertir imagen a WebP
         await convertirSticker(img, webp)
 
+        if (!fs.existsSync(webp)) {
+            throw new Error(
+                'No se pudo crear el sticker'
+            )
+        }
+
+        // Leer WebP
+        const sticker = fs.readFileSync(webp)
+
+        // Enviar como sticker
         await sock.sendMessage(
             from,
             {
-                sticker: fs.readFileSync(webp),
+                sticker: sticker,
                 packname: 'Tibu Bot 🌊',
                 author: 'SoyGabo'
             },
             { quoted: m }
         )
 
+        // Reacción de éxito
         await sock.sendMessage(from, {
             react: {
                 text: '✅',
@@ -95,77 +136,81 @@ Escribe el texto que quieres convertir en sticker.
         })
 
         await sock.sendMessage(from, {
-            text: '❌ *No se pudo generar el sticker.*'
+            text:
+`❌ *No se pudo crear el sticker Brat.*
+
+> ${e.message || 'Error desconocido'}`
         }, { quoted: m })
 
     } finally {
 
+        // Eliminar archivos temporales
         if (fs.existsSync(img)) {
-            fs.unlinkSync(img)
+            try {
+                fs.unlinkSync(img)
+            } catch {}
         }
 
         if (fs.existsSync(webp)) {
-            fs.unlinkSync(webp)
+            try {
+                fs.unlinkSync(webp)
+            } catch {}
         }
     }
 }
 
-function wrap(text, max = 28) {
 
-    const words = text.split(/\s+/)
-    const lines = []
-
-    let current = ''
-
-    for (const word of words) {
-
-        const siguiente =
-            `${current} ${word}`.trim()
-
-        if (siguiente.length > max) {
-
-            if (current) {
-                lines.push(current)
-            }
-
-            current = word
-
-        } else {
-
-            current = siguiente
-        }
-    }
-
-    if (current) {
-        lines.push(current)
-    }
-
-    return lines.join('\n')
-}
+// ─────────────────────────────
+// CONVERTIR IMAGEN A STICKER
+// ─────────────────────────────
 
 function convertirSticker(input, output) {
 
     return new Promise((resolve, reject) => {
 
-        const comando =
-            `ffmpeg -y -i "${input}" ` +
-            `-vcodec libwebp ` +
-            `-vf "scale=512:512:force_original_aspect_ratio=decrease,` +
-            `format=rgba,` +
-            `pad=512:512:(ow-iw)/2:(oh-ih)/2:color=#00000000" ` +
-            `"${output}"`
+        execFile(
+            'ffmpeg',
+            [
+                '-y',
+                '-i', input,
 
-        exec(comando, (error) => {
+                '-vcodec',
+                'libwebp',
 
-            if (error) {
-                reject(error)
-                return
+                '-vf',
+                'scale=512:512:force_original_aspect_ratio=decrease,format=rgba,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=#00000000',
+
+                '-lossless',
+                '0',
+
+                '-q:v',
+                '75',
+
+                output
+            ],
+            (error, stdout, stderr) => {
+
+                if (error) {
+
+                    console.error(
+                        'FFMPEG ERROR:',
+                        stderr
+                    )
+
+                    reject(error)
+                    return
+                }
+
+                resolve()
             }
-
-            resolve()
-        })
+        )
     })
 }
+
+
+// ─────────────────────────────
+// CONFIGURACIÓN TIBU
+// ─────────────────────────────
 
 handler.command = ['brat']
 handler.help = ['brat <texto>']
