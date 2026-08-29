@@ -6,124 +6,115 @@ const API_KEY = 'lem_87eb6b2f8d1fd1a413de398cf37608cf36b68691'
 const handler = {}
 
 handler.run = async (sock, m, args) => {
-    const query = args.join(' ').trim()
+  const query = args.join(' ').trim()
 
-    if (!query) {
-        return sock.sendMessage(
-            m.key.remoteJid,
-            {
-                text: '🌊 Escribe el nombre de la canción.\n\n> Ejemplo: .play IMU'
-            },
-            { quoted: m }
-        )
-    }
+  if (!query) {  
+    return sock.sendMessage(  
+      m.key.remoteJid,  
+      {  
+        text: `🎵 \`Escribe el nombre de la canción.\`\n\n> Ejemplo: .play IMU`
+      },  
+      { quoted: m }  
+    )  
+  }  
 
-    const from = m.key.remoteJid
+  const from = m.key.remoteJid  
 
-    try {
-        await sock.sendMessage(from, {
-            react: {
-                text: '🔎',
-                key: m.key
-            }
-        })
+  try {  
+    await sock.sendMessage(from, {  
+      react: { text: '🔎', key: m.key }  
+    })  
 
-        // 🔎 BUSCAR EN YOUTUBE
-        const search = await yts(query)
+    const search = await yts(query)  
 
-        if (!search.videos?.length) {
-            return sock.sendMessage(
-                from,
-                {
-                    text: '❌ No encontré resultados para esa búsqueda.'
-                },
-                { quoted: m }
-            )
-        }
+    if (!search.videos?.length) {  
+      return sock.sendMessage(  
+        from,  
+        { text: `❌ \`No encontré resultados para esa búsqueda.\`` },  
+        { quoted: m }  
+      )  
+    }  
 
-        const video = search.videos[0]
+    const video = search.videos[0]  
 
-        // ⬇️ DESCARGAR CON LEMPI
-        const apiUrl =
-            `https://api.lempi.lat/dl/yta` +
-            `?url=${encodeURIComponent(video.url)}` +
-            `&apikey=${API_KEY}`
+    // 📄 INFO + PORTADA DE LA CANCIÓN
+    await sock.sendMessage(from, {
+      image: { url: video.thumbnail },
+      caption: `
+╭───────────────────────╮
+│      🎵  REPRODUCCIÓN
+╰───────────────────────╯
 
-        const response = await axios.get(apiUrl, {
-            timeout: 60000
-        })
+ 📀 Título:  \`${video.title}\`
+ 👤 Artista: \`${video.author.name}\`
+ ⏱️ Duración:\` ${video.duration}\`
+ 👁️ Vistas:  \`${video.views.toLocaleString()}\`
+ 📅 Fecha:   \`${video.uploadDate || 'Desconocida'}\`
 
-        const data = response.data
+🔗 ${video.url}
 
-        if (!data?.status) {
-            console.log('LEMPi PLAY:', data)
+▸ \`Cargando audio...\`
+      `,
+      quoted: m
+    })
 
-            return sock.sendMessage(
-                from,
-                {
-                    text: '❌ La API no pudo descargar esta canción.'
-                },
-                { quoted: m }
-            )
-        }
+    // ⬇️ DESCARGAR CON LEMPI
+    const apiUrl =  
+        `https://api.lempi.lat/dl/yta` +  
+        `?url=${encodeURIComponent(video.url)}` +  
+        `&apikey=${API_KEY}`  
 
-        const audioUrl = data?.datos?.url
+    const response = await axios.get(apiUrl, { timeout: 60000 })  
+    const data = response.data  
 
-        if (!audioUrl) {
-            console.log('RESPUESTA SIN AUDIO:', data)
+    if (!data?.status) {  
+      console.log('LEMPi PLAY:', data)  
+      return sock.sendMessage(  
+        from,  
+        { text: `❌ \`La API no pudo descargar esta canción.\`` },  
+        { quoted: m }  
+      )  
+    }  
 
-            return sock.sendMessage(
-                from,
-                {
-                    text: '❌ La API no devolvió el archivo de audio.'
-                },
-                { quoted: m }
-            )
-        }
+    const audioUrl = data?.datos?.url  
 
-        // 📥 DESCARGAR EL ARCHIVO
-        const audio = await axios.get(audioUrl, {
-            responseType: 'arraybuffer',
-            timeout: 60000
-        })
+    if (!audioUrl) {  
+      console.log('RESPUESTA SIN AUDIO:', data)  
+      return sock.sendMessage(  
+        from,  
+        { text: `❌ \`La API no devolvió el archivo de audio.\`` },  
+        { quoted: m }  
+      )  
+    }  
 
-        // 🎵 ENVIAR AUDIO
-        await sock.sendMessage(
-            from,
-            {
-                audio: Buffer.from(audio.data),
-                mimetype: 'audio/mp4',
-                fileName: `${video.title}.m4a`,
-                ptt: false
-            },
-            { quoted: m }
-        )
+    // 📥 DESCARGAR Y ENVIAR AUDIO
+    const audio = await axios.get(audioUrl, {  
+      responseType: 'arraybuffer',  
+      timeout: 60000  
+    })  
 
-        await sock.sendMessage(from, {
-            react: {
-                text: '✅',
-                key: m.key
-            }
-        })
+    await sock.sendMessage(  
+      from,  
+      {  
+        audio: Buffer.from(audio.data),  
+        mimetype: 'audio/mp4',  
+        fileName: `${video.title}.m4a`,  
+        ptt: false  
+      },  
+      { quoted: m }  
+    )  
 
-    } catch (error) {
-        console.error('PLAY ERROR:', error)
+    await sock.sendMessage(from, { react: { text: '✅', key: m.key } })
 
-        await sock.sendMessage(from, {
-            react: {
-                text: '❌',
-                key: m.key
-            }
-        })
-
-        await sock.sendMessage(
-            from,
-            {
-                text: '❌ No se pudo descargar la música. Intenta nuevamente.'
-            },
-            { quoted: m }
-        )
-    }
+  } catch (error) {  
+    console.error('PLAY ERROR:', error)  
+    await sock.sendMessage(from, { react: { text: '❌', key: m.key } })  
+    await sock.sendMessage(  
+      from,  
+      { text: `❌ \`No se pudo descargar la música. Intenta nuevamente.\`` },  
+      { quoted: m }  
+    )  
+  }
 }
 
 handler.command = ['play', 'mp3', 'musica']
