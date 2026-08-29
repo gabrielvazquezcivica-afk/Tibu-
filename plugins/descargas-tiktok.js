@@ -1,40 +1,6 @@
 import axios from 'axios'
-import config from '../config.js'
 
-async function tiktokScraper(url) {
-    try {
-        const key64 = 'c2FzdWtl'
-
-        const decodedKey = Buffer
-            .from(key64, 'base64')
-            .toString('utf-8')
-
-        const { data } = await axios.get(
-            `https://api.evogb.org/dl/tiktok?url=${encodeURIComponent(url)}&key=${decodedKey}`
-        )
-
-        if (!data?.status) {
-            return { status: false }
-        }
-
-        return {
-            status: true,
-            title: data.data?.title || 'Sin título',
-            author: data.data?.author?.nickname || 'Desconocido',
-            user: data.data?.author?.unique_id || 'Desconocido',
-            duration: data.data?.duration || 'Desconocido',
-            likes: data.data?.stats?.likes || 0,
-            comments: data.data?.stats?.comments || 0,
-            shares: data.data?.stats?.shares || 0,
-            views: data.data?.stats?.views || 0,
-            download: data.data?.dl
-        }
-
-    } catch (e) {
-        console.log('TT SCRAPER ERROR:', e)
-        return { status: false }
-    }
-}
+const API_KEY = 'lem_87eb6b2f8d1fd1a413de398cf37608cf36b68691'
 
 let handler = {}
 
@@ -42,127 +8,129 @@ handler.run = async (sock, m, args) => {
 
     const from = m.key.remoteJid
 
-    let query = (args || []).join(' ').trim()
+    // Texto del mensaje
+    const mensaje = args.join(' ').trim()
 
-    // Responder a mensaje con link
-    if (!query) {
-        const quoted =
-            m.message?.extendedTextMessage
-                ?.contextInfo
-                ?.quotedMessage
+    // Texto del mensaje citado
+    const citado =
+        m.message?.extendedTextMessage?.contextInfo?.quotedMessage
 
-        query =
-            quoted?.conversation ||
-            quoted?.extendedTextMessage?.text ||
-            ''
-    }
+    const textoCitado =
+        citado?.conversation?.trim() ||
+        citado?.extendedTextMessage?.text?.trim() ||
+        citado?.imageMessage?.caption?.trim() ||
+        citado?.videoMessage?.caption?.trim() ||
+        ''
 
-    if (!query) {
+    // Buscar URL en el mensaje o en el mensaje citado
+    const texto = `${mensaje} ${textoCitado}`
 
-        await sock.sendMessage(from, {
-            react: {
-                text: '🎵',
-                key: m.key
-            }
-        })
+    const match = texto.match(
+        /https?:\/\/(?:www\.)?(?:tiktok\.com|vm\.tiktok\.com|vt\.tiktok\.com)\/[^\s]+/i
+    )
 
-        return sock.sendMessage(from, {
-            text:
+    if (!match) {
+        return sock.sendMessage(
+            from,
+            {
+                text:
 `🎵 *TIKTOK DOWNLOADER*
 
-> Envía un enlace de TikTok
+Envíame un enlace de TikTok.
 
-> Ejemplo:
-> .tt https://vm.tiktok.com/xxxxx
+*Ejemplos:*
+.tt https://vm.tiktok.com/xxxxx
 
-> También puedes responder a un mensaje con el enlace
-
-> ${config.BOT_NAME}`
-        }, { quoted: m })
+También puedes responder a un mensaje que contenga el enlace.`
+            },
+            { quoted: m }
+        )
     }
 
-    await sock.sendMessage(from, {
-        react: {
-            text: '⏳',
-            key: m.key
-        }
-    })
+    const tiktokUrl = match[0].replace(/[)>.,]+$/, '')
 
     try {
 
-        const res = await tiktokScraper(query)
+        const apiUrl =
+            `https://api.lempi.lat/dl/tiktok` +
+            `?url=${encodeURIComponent(tiktokUrl)}` +
+            `&apikey=${API_KEY}`
 
-        if (!res.status || !res.download) {
+        const response = await axios.get(apiUrl, {
+            timeout: 60000
+        })
 
-            await sock.sendMessage(from, {
-                react: {
-                    text: '❌',
-                    key: m.key
-                }
-            })
+        const data = response.data
 
-            return sock.sendMessage(from, {
-                text:
-'`❌ No pude descargar el TikTok`'
-            }, { quoted: m })
+        // Si la API devuelve error
+        if (!data?.status) {
+            throw new Error(
+                data?.mensaje ||
+                data?.message ||
+                data?.error ||
+                'No se pudo descargar el video de TikTok.'
+            )
         }
 
-        const caption =
-`╭──────────────⬣
-│ 𝐓𝐈𝐁𝐔 𝐓𝐈𝐊𝐓𝐎𝐊 🎵
-├──────────────
-│ 📝 ${res.title}
-│
-│ 👤 ${res.author}
-│ 🆔 @${res.user}
-│
-│ ⏱ ${res.duration}
-│
-│ 👁 ${Number(res.views).toLocaleString()}
-│
-│ ❤️ ${Number(res.likes).toLocaleString()}
-│
-│ 💬 ${Number(res.comments).toLocaleString()}
-│
-│ 🔄 ${Number(res.shares).toLocaleString()}
-│
-│ 📥 Descargando...
-╰──────────────⬣
-> ${config.BOT_NAME}`
+        // Buscar URL del video
+        const videoUrl =
+            data?.video ||
+            data?.video_url ||
+            data?.download ||
+            data?.url ||
+            data?.datos?.url ||
+            data?.datos?.video ||
+            data?.datos?.video_url ||
+            data?.data?.url ||
+            data?.data?.video
 
-        await sock.sendMessage(from, {
-            video: {
-                url: res.download
+        if (!videoUrl) {
+            throw new Error(
+                'La API no devolvió el enlace del video.'
+            )
+        }
+
+        // Descargar video
+        const video = await axios.get(videoUrl, {
+            responseType: 'arraybuffer',
+            timeout: 120000,
+            maxContentLength: 100 * 1024 * 1024,
+            maxBodyLength: 100 * 1024 * 1024
+        })
+
+        const buffer = Buffer.from(video.data)
+
+        if (!buffer.length) {
+            throw new Error(
+                'El video descargado está vacío.'
+            )
+        }
+
+        // Enviar video
+        await sock.sendMessage(
+            from,
+            {
+                video: buffer,
+                mimetype: 'video/mp4',
+                caption: '🎵 *TikTok descargado sin marca de agua*\n\n🌊 *Tibu Bot*'
             },
-            mimetype: 'video/mp4',
-            fileName: 'tibu-tiktok.mp4',
-            caption
-        }, {
-            quoted: m
-        })
+            { quoted: m }
+        )
 
-        await sock.sendMessage(from, {
-            react: {
-                text: '✅',
-                key: m.key
-            }
-        })
+    } catch (error) {
 
-    } catch (e) {
+        // No mostrar errores/procesos en consola
 
-        console.log('TT ERROR:', e)
+        await sock.sendMessage(
+            from,
+            {
+                text:
+`❌ *No se pudo descargar el TikTok.*
 
-        await sock.sendMessage(from, {
-            react: {
-                text: '❌',
-                key: m.key
-            }
-        })
-
-        await sock.sendMessage(from, {
-            text:
-'`❌ Error al descargar el TikTok`'
-        }, { quoted: m })
+> ${error.message || 'Error desconocido'}`
+            },
+            { quoted: m }
+        )
     }
 }
 
