@@ -7,18 +7,23 @@ const API_KEY = 'lem_87eb6b2f8d1fd1a413de398cf37608cf36b68691'
 let handler = {}
 
 handler.run = async (sock, m, args) => {
+
     const from = m.key.remoteJid
-    const texto = args.join(' ').trim() || m.message?.extendedTextMessage?.contextInfo?.quotedMessage?.conversation?.trim()
+
+    const texto =
+        args.join(' ').trim() ||
+        m.message?.extendedTextMessage?.contextInfo?.quotedMessage?.conversation?.trim() ||
+        m.message?.extendedTextMessage?.contextInfo?.quotedMessage?.extendedTextMessage?.text?.trim()
 
     if (!texto) {
         return sock.sendMessage(from, {
             text:
 `🌊 *BRAT*
 
-Escribe el texto para crear tu sticker.
+Escribe el texto que quieres convertir en sticker.
 
 > Ejemplo:
-.brat Hola mundo`
+.br at Hola mundo`
         }, { quoted: m })
     }
 
@@ -36,10 +41,12 @@ Escribe el texto para crear tu sticker.
     })
 
     const id = Date.now()
+
     const img = `./tibu-brat-${id}.png`
     const webp = `./tibu-brat-${id}.webp`
 
     try {
+
         const formatted = wrap(texto, 28)
 
         const url =
@@ -57,24 +64,17 @@ Escribe el texto para crear tu sticker.
 
         fs.writeFileSync(img, res.data)
 
-        await new Promise((resolve, reject) => {
-            exec(
-                `ffmpeg -y -i "${img}" -vcodec libwebp ` +
-                `-vf "scale=512:512:force_original_aspect_ratio=decrease,` +
-                `format=rgba,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=#00000000" ` +
-                `"${webp}"`,
-                error => {
-                    if (error) reject(error)
-                    else resolve()
-                }
-            )
-        })
+        await convertirSticker(img, webp)
 
-        await sock.sendMessage(from, {
-            sticker: fs.readFileSync(webp),
-            packname: 'Tibu Bot 🌊',
-            author: 'Tibu'
-        }, { quoted: m })
+        await sock.sendMessage(
+            from,
+            {
+                sticker: fs.readFileSync(webp),
+                packname: 'Tibu Bot 🌊',
+                author: 'SoyGabo'
+            },
+            { quoted: m }
+        )
 
         await sock.sendMessage(from, {
             react: {
@@ -84,6 +84,7 @@ Escribe el texto para crear tu sticker.
         })
 
     } catch (e) {
+
         console.error('BRAT ERROR:', e)
 
         await sock.sendMessage(from, {
@@ -98,6 +99,7 @@ Escribe el texto para crear tu sticker.
         }, { quoted: m })
 
     } finally {
+
         if (fs.existsSync(img)) {
             fs.unlinkSync(img)
         }
@@ -109,17 +111,27 @@ Escribe el texto para crear tu sticker.
 }
 
 function wrap(text, max = 28) {
+
     const words = text.split(/\s+/)
     const lines = []
+
     let current = ''
 
     for (const word of words) {
-        const siguiente = `${current} ${word}`.trim()
+
+        const siguiente =
+            `${current} ${word}`.trim()
 
         if (siguiente.length > max) {
-            if (current) lines.push(current)
+
+            if (current) {
+                lines.push(current)
+            }
+
             current = word
+
         } else {
+
             current = siguiente
         }
     }
@@ -129,6 +141,30 @@ function wrap(text, max = 28) {
     }
 
     return lines.join('\n')
+}
+
+function convertirSticker(input, output) {
+
+    return new Promise((resolve, reject) => {
+
+        const comando =
+            `ffmpeg -y -i "${input}" ` +
+            `-vcodec libwebp ` +
+            `-vf "scale=512:512:force_original_aspect_ratio=decrease,` +
+            `format=rgba,` +
+            `pad=512:512:(ow-iw)/2:(oh-ih)/2:color=#00000000" ` +
+            `"${output}"`
+
+        exec(comando, (error) => {
+
+            if (error) {
+                reject(error)
+                return
+            }
+
+            resolve()
+        })
+    })
 }
 
 handler.command = ['brat']
