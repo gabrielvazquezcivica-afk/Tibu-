@@ -22,7 +22,7 @@ handler.run = async (sock, m, args) => {
 
   try {  
     await sock.sendMessage(from, {  
-      react: { text: '🔎', key: m.key }  
+      react: { text: '⏳', key: m.key }  
     })  
 
     const search = await yts(query)  
