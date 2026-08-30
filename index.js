@@ -7,6 +7,7 @@ import chalk from 'chalk'
 import config from './config.js'
 import { muteWatcher } from './lib/muteWatcher.js'
 import { antiLink } from './lib/antilink.js'
+import { afkWatcher } from './lib/afkWatcher.js'
 import { welcomeHandler } from './plugins/on-off-welcome.js'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -312,6 +313,9 @@ async function procesarMensaje(sock, m) {
     // 🔇 MUTE
     const muted = await muteWatcher(sock, m)
     if (muted) return
+
+const afk = await afkWatcher(sock, m)
+if (afk) return
 
     // 🚫 ANTILINK
     const bloqueado = await antiLink(sock, m)
