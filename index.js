@@ -314,8 +314,7 @@ async function procesarMensaje(sock, m) {
     const muted = await muteWatcher(sock, m)
     if (muted) return
 
-const afk = await afkWatcher(sock, m)
-if (afk) return
+await afkWatcher(sock, m)
 
     // 🚫 ANTILINK
     const bloqueado = await antiLink(sock, m)
