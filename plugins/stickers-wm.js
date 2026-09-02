@@ -7,16 +7,48 @@ import { downloadContentFromMessage } from '@whiskeysockets/baileys'
 let handler = {}
 
 handler.run = async (sock, m, args) => {
+
     const from = m.key.remoteJid
 
     const quoted =
         m.message?.extendedTextMessage?.contextInfo?.quotedMessage
 
     if (!quoted?.stickerMessage) {
-        return sock.sendMessage(from, {
-            text: '`🌊 Responde a un sticker con .wm`'
-        }, { quoted: m })
+        return sock.sendMessage(
+            from,
+            {
+                text: '`🌊 Responde a un sticker con .wm`'
+            },
+            { quoted: m }
+        )
     }
+
+    const sticker = quoted.stickerMessage
+
+    /*
+     * ==========================================
+     * DETECTAR TIPO DE STICKER
+     * ==========================================
+     */
+
+    const esAnimado =
+        sticker.isAnimated === true ||
+        sticker.isAnimated === 'true'
+
+    /*
+     * Sticker animado = 🔥
+     * Sticker normal  = ❤️
+     */
+
+    const reaccionTipo = esAnimado
+        ? '🔥'
+        : '❤️'
+
+    /*
+     * ==========================================
+     * NOMBRE
+     * ==========================================
+     */
 
     let texto = args.join(' ').trim()
 
@@ -28,31 +60,45 @@ handler.run = async (sock, m, args) => {
     let output
 
     try {
-        // Detectar si el sticker es animado o normal
-        const esAnimado =
-            quoted.stickerMessage.isAnimated === true
 
-        const reaccion = esAnimado
-            ? '🔄'
-            : '🏖️'
+        /*
+         * ==========================================
+         * REACCIÓN SEGÚN EL TIPO
+         * ==========================================
+         */
 
         await sock.sendMessage(from, {
             react: {
-                text: reaccion,
+                text: reaccionTipo,
                 key: m.key
             }
         })
 
+        /*
+         * ==========================================
+         * DESCARGAR STICKER
+         * ==========================================
+         */
+
         const stream = await downloadContentFromMessage(
-            quoted.stickerMessage,
+            sticker,
             'sticker'
         )
 
         let buffer = Buffer.alloc(0)
 
         for await (const chunk of stream) {
-            buffer = Buffer.concat([buffer, chunk])
+            buffer = Buffer.concat([
+                buffer,
+                chunk
+            ])
         }
+
+        /*
+         * ==========================================
+         * ARCHIVOS TEMPORALES
+         * ==========================================
+         */
 
         const tmp = os.tmpdir()
 
@@ -68,14 +114,36 @@ handler.run = async (sock, m, args) => {
 
         fs.writeFileSync(input, buffer)
 
+        /*
+         * ==========================================
+         * CARGAR STICKER
+         * ==========================================
+         */
+
         const img = new webp.Image()
+
         await img.load(input)
+
+        /*
+         * ==========================================
+         * DATOS DEL STICKER
+         * ==========================================
+         */
 
         const exifData = {
             'sticker-pack-id': `tibu-${Date.now()}`,
+
+            // Nombre mostrado
             'sticker-pack-name': texto,
+
+            // Sin publisher
             'sticker-pack-publisher': '',
-            emojis: ['🦈']
+
+            emojis: [
+                esAnimado
+                    ? '🔥'
+                    : '❤️'
+            ]
         }
 
         const json = Buffer.from(
@@ -83,34 +151,65 @@ handler.run = async (sock, m, args) => {
             'utf-8'
         )
 
+        /*
+         * ==========================================
+         * EXIF
+         * ==========================================
+         */
+
         const exif = Buffer.concat([
+
             Buffer.from([
                 0x49, 0x49, 0x2A, 0x00,
                 0x08, 0x00, 0x00, 0x00
             ]),
-            Buffer.from([0x01, 0x00]),
+
+            Buffer.from([
+                0x01, 0x00
+            ]),
+
             Buffer.from([
                 0x41, 0x57,
                 0x07, 0x00
             ]),
+
             Buffer.from([
                 json.length & 0xff,
                 (json.length >> 8) & 0xff,
                 (json.length >> 16) & 0xff,
                 (json.length >> 24) & 0xff
             ]),
+
             Buffer.from([
                 0x16, 0x00, 0x00, 0x00
             ]),
+
             json
         ])
 
         img.exif = exif
+
         await img.save(output)
 
-        await sock.sendMessage(from, {
-            sticker: fs.readFileSync(output)
-        }, { quoted: m })
+        /*
+         * ==========================================
+         * ENVIAR STICKER
+         * ==========================================
+         */
+
+        await sock.sendMessage(
+            from,
+            {
+                sticker: fs.readFileSync(output)
+            },
+            { quoted: m }
+        )
+
+        /*
+         * ==========================================
+         * REACCIÓN FINAL
+         * ==========================================
+         */
 
         await sock.sendMessage(from, {
             react: {
@@ -120,19 +219,38 @@ handler.run = async (sock, m, args) => {
         })
 
     } catch (e) {
-        console.log('WM ERROR:', e)
 
-        await sock.sendMessage(from, {
-            text: '`❌ Error al cambiar watermark`'
-        }, { quoted: m })
+        console.log(
+            'WM ERROR:',
+            e?.message || e
+        )
+
+        await sock.sendMessage(
+            from,
+            {
+                text: '`❌ Error al cambiar watermark`'
+            },
+            { quoted: m }
+        )
 
     } finally {
+
+        /*
+         * ==========================================
+         * LIMPIAR ARCHIVOS
+         * ==========================================
+         */
+
         try {
-            if (input) fs.unlinkSync(input)
+            if (input) {
+                fs.unlinkSync(input)
+            }
         } catch {}
 
         try {
-            if (output) fs.unlinkSync(output)
+            if (output) {
+                fs.unlinkSync(output)
+            }
         } catch {}
     }
 }
