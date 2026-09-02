@@ -28,9 +28,17 @@ handler.run = async (sock, m, args) => {
     let output
 
     try {
+        // Detectar si el sticker es animado o normal
+        const esAnimado =
+            quoted.stickerMessage.isAnimated === true
+
+        const reaccion = esAnimado
+            ? '🔄'
+            : '🏖️'
+
         await sock.sendMessage(from, {
             react: {
-                text: '🦈',
+                text: reaccion,
                 key: m.key
             }
         })
