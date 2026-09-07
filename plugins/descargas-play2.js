@@ -1,89 +1,151 @@
-import fetch from 'node-fetch'
 import yts from 'yt-search'
 
-let handler = {}
+const API_URL = 'https://api.lempi.lat/dl/ytv'
+const API_KEY = 'lem_87eb6b2f8d1fd1a413de398cf37608cf36b68691'
+
+const handler = {}
 
 handler.run = async (sock, m, args) => {
     const from = m.key.remoteJid
-
     const text = args.join(' ').trim()
 
     if (!text) {
-        return sock.sendMessage(from, {
-            text:
-`🎬 Escribe el nombre del video
+        return await sock.sendMessage(
+            from,
+            {
+                text:
+`🎬 *PLAY2*
 
-Ejemplo:
-.play2 Maluma`
-        }, { quoted: m })
+Escribe el nombre del video.
+
+📌 *Ejemplo:*
+.play2 Maluma
+
+> TIBU`
+            },
+            { quoted: m }
+        )
     }
 
-    await sock.sendMessage(from, {
-        react: { text: '🕒', key: m.key }
-    })
-
     try {
+        // Reacción mientras busca
+        await sock.sendMessage(from, {
+            react: {
+                text: '🕒',
+                key: m.key
+            }
+        })
 
+        // Buscar en YouTube
         const search = await yts(text)
 
-        if (!search.videos.length) {
+        if (!search?.videos?.length) {
             await sock.sendMessage(from, {
-                react: { text: '❌', key: m.key }
+                react: {
+                    text: '❌',
+                    key: m.key
+                }
             })
 
-            return sock.sendMessage(from, {
-                text: '`❌ No encontré resultados.`'
-            }, { quoted: m })
+            return await sock.sendMessage(
+                from,
+                {
+                    text: '❌ *No encontré resultados.*'
+                },
+                { quoted: m }
+            )
         }
 
         const video = search.videos[0]
 
+        // API de Lempi
         const api =
-`https://api.delirius.store/download/ytmp4?url=${encodeURIComponent(video.url)}&format=360p`
+            `${API_URL}?url=${encodeURIComponent(video.url)}` +
+            `&apikey=${encodeURIComponent(API_KEY)}`
 
-        const res = await fetch(api)
-        const json = await res.json()
+        const response = await fetch(api, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
 
-        if (!json.status || !json.data) {
-            throw new Error('API ERROR')
+        if (!response.ok) {
+            throw new Error(`API respondió con HTTP ${response.status}`)
         }
 
-        const yt = json.data
+        const data = await response.json()
+
+
+
+        if (
+            !data?.status ||
+            !data?.datos?.url
+        ) {
+            throw new Error(
+                data?.message ||
+                'La API no devolvió el video'
+            )
+        }
+
+        const yt = data.datos
 
         const info =
-`┌─────────────┐
-│ 🎬 PLAY2
-├──────────────┤
-│ 🎵 ${yt.title}
-│ 👤 ${yt.author}
-│ ⏱️ ${video.timestamp}
-│ 👀 ${video.views.toLocaleString()} vistas
-└──────────────────────┘`
+`┌──────────────
+│ 🎬 *PLAY2*
+├──────────────
+│ 🎵 ${data.titulo || video.title}
+│ 👤 ${data.canal || video.author?.name || 'Desconocido'}
+│ ⏱️ ${data.duracion || video.timestamp}
+│ 👀 ${video.views?.toLocaleString() || '0'} vistas
+│ 📺 ${yt.calidad || '360p'}
+│ 💾 ${yt.tamaño || 'Desconocido'}
+└──────────────`
 
-        await sock.sendMessage(from, {
-    video: {
-        url: yt.download
-    },
-    mimetype: 'video/mp4',
-    fileName: `${yt.title}.mp4`,
-    caption: info
-}, { quoted: m })
+        // Enviar video
+        await sock.sendMessage(
+            from,
+            {
+                video: {
+                    url: yt.url
+                },
+                mimetype: 'video/mp4',
+                fileName: yt.archivo || `${data.titulo || video.title}.mp4`,
+                caption: info
+            },
+            { quoted: m }
+        )
 
+        // Reacción final
         await sock.sendMessage(from, {
-            react: { text: '✅', key: m.key }
+            react: {
+                text: '✅',
+                key: m.key
+            }
         })
 
-    } catch (e) {
-
-        console.log('PLAY2 ERROR:', e)
+    } catch (error) {
+        console.error('PLAY2 ERROR:', error)
 
         await sock.sendMessage(from, {
-            react: { text: '❌', key: m.key }
+            react: {
+                text: '❌',
+                key: m.key
+            }
         })
 
-        await sock.sendMessage(from, {
-            text: '`❌ Error al descargar el video.`'
-        }, { quoted: m })
+        await sock.sendMessage(
+            from,
+            {
+                text:
+`❌ *Error al descargar el video.*
+
+${error.message || error}
+
+> TIBU`
+            },
+            { quoted: m }
+        )
     }
 }
 
