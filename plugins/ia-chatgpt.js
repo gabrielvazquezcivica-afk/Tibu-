@@ -1,68 +1,85 @@
-import axios from 'axios'
 import config from '../config.js'
 
-const sesiones = {}
+const API_URL = 'https://api.lempi.lat/ai/deepseek'
+const API_KEY = 'lem_87eb6b2f8d1fd1a413de398cf37608cf36b68691'
 
-let handler = {}
+const handler = {}
 
 handler.run = async (sock, m, args) => {
     const from = m.key.remoteJid
-    const sender = m.key.participant || m.key.remoteJid
-
     const text = args.join(' ').trim()
 
     if (!text) {
-        return sock.sendMessage(from, {
-            text:
-`🤖 \`TIBU AI\`
+        return await sock.sendMessage(
+            from,
+            {
+                text:
+`🤖 *TIBU AI*
 
-💬 Escribe un mensaje para hablar con la IA.
+💬 Escribe algo para hablar con la IA.
 
-Ejemplo:
+📌 *Ejemplo:*
 .ia Hola, ¿cómo estás?
 
 > ${config.BOT_NAME}`
-        }, { quoted: m })
+            },
+            { quoted: m }
+        )
     }
 
     try {
-
+        // Reacción mientras procesa
         await sock.sendMessage(from, {
             react: {
-                text: '💬',
+                text: '💭',
                 key: m.key
             }
         })
 
-        const key = Buffer
-            .from('c2FzdWtl', 'base64')
-            .toString('utf-8')
+        // Consultar DeepSeek
+        const url =
+            `${API_URL}?q=${encodeURIComponent(text)}` +
+            `&apikey=${encodeURIComponent(API_KEY)}`
 
-        if (!sesiones[sender]) {
-            sesiones[sender] = Math.floor(
-                10000000 + Math.random() * 90000000
-            ).toString()
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`)
         }
 
-        const session = sesiones[sender]
+        const data = await response.json()
 
-        const { data } = await axios.get(
-            `https://api.evogb.org/ai/gpt4-session?text=${encodeURIComponent(text)}&session=${session}&key=${key}`
-        )
+        console.log('DEEPSEEK:', data)
 
-        if (!data?.status || !data?.result) {
-            throw new Error('La IA no respondió correctamente')
+        if (
+            !data?.status ||
+            !data?.resultado?.respuesta
+        ) {
+            throw new Error('La API no devolvió una respuesta válida')
         }
 
-        await sock.sendMessage(from, {
-            text:
+        const respuesta = data.resultado.respuesta
+
+        // Enviar respuesta
+        await sock.sendMessage(
+            from,
+            {
+                text:
 `🤖 *TIBU AI*
 
-${data.result}
+${respuesta}
 
 > ${config.BOT_NAME}`
-        }, { quoted: m })
+            },
+            { quoted: m }
+        )
 
+        // Reacción final
         await sock.sendMessage(from, {
             react: {
                 text: '🦈',
@@ -70,9 +87,8 @@ ${data.result}
             }
         })
 
-    } catch (e) {
-
-        console.log('IA ERROR:', e)
+    } catch (error) {
+        console.error('DEEPSEEK ERROR:', error)
 
         await sock.sendMessage(from, {
             react: {
@@ -81,12 +97,18 @@ ${data.result}
             }
         })
 
-        await sock.sendMessage(from, {
-            text:
-`❌ \`Error al obtener respuesta de la IA\`
+        await sock.sendMessage(
+            from,
+            {
+                text:
+`❌ *Error al obtener respuesta*
+
+No pude obtener una respuesta de TIBU AI.
 
 > ${config.BOT_NAME}`
-        }, { quoted: m })
+            },
+            { quoted: m }
+        )
     }
 }
 
