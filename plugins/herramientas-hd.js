@@ -1,22 +1,22 @@
-import fetch from 'node-fetch'
-import FormData from 'form-data'
-import crypto from 'crypto'
 import { downloadContentFromMessage } from '@whiskeysockets/baileys'
 import config from '../config.js'
+
+const API_URL = 'https://api.lempi.lat/tools/upscaler'
+const API_KEY = 'lem_87eb6b2f8d1fd1a413de398cf37608cf36b68691'
+
+const handler = {}
 
 async function descargar(media, tipo) {
     const stream = await downloadContentFromMessage(media, tipo)
 
-    let buffer = Buffer.from([])
+    const chunks = []
 
     for await (const chunk of stream) {
-        buffer = Buffer.concat([buffer, chunk])
+        chunks.push(chunk)
     }
 
-    return buffer
+    return Buffer.concat(chunks)
 }
-
-let handler = {}
 
 handler.run = async (sock, m, args) => {
     const from = m.key.remoteJid
@@ -29,16 +29,24 @@ handler.run = async (sock, m, args) => {
         m.message?.imageMessage
 
     if (!image) {
-        return sock.sendMessage(from, {
-            text:
-`🖼️ \`Responde a una imagen con .hd\`
+        return await sock.sendMessage(
+            from,
+            {
+                text:
+`🖼️ *Responde a una imagen con .hd*
+
+📌 Ejemplo:
+Responde a una foto escribiendo:
+.hd
 
 > ${config.BOT_NAME}`
-        }, { quoted: m })
+            },
+            { quoted: m }
+        )
     }
 
     try {
-
+        // Reacción mientras procesa
         await sock.sendMessage(from, {
             react: {
                 text: '⏳',
@@ -46,81 +54,75 @@ handler.run = async (sock, m, args) => {
             }
         })
 
-        const key = Buffer
-            .from('c2FzdWtl', 'base64')
-            .toString('utf-8')
+        // Descargar imagen de WhatsApp
+        const buffer = await descargar(image, 'image')
 
-        const buffer =
-            await descargar(image, 'image')
+        // Convertir imagen a Base64
+        const base64 = buffer.toString('base64')
 
-        const filename =
-            'img-' +
-            crypto.randomBytes(6).toString('hex') +
-            '.jpg'
-
-        const form = new FormData()
-
-        form.append('file', buffer, {
-            filename,
-            contentType: 'image/jpeg'
-        })
-
-        const upload = await fetch(
-            `https://api.evogb.org/tools/upload?key=${key}`,
+        // Enviar a la API de Lempi
+        const response = await fetch(
+            `${API_URL}?multiplier=4&apikey=${encodeURIComponent(API_KEY)}`,
             {
                 method: 'POST',
-                body: form,
-                headers: form.getHeaders()
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    image: `data:image/jpeg;base64,${base64}`
+                })
             }
         )
 
-        const uploadJson =
-            await upload.json()
+        if (!response.ok) {
+            throw new Error(`API respondió con HTTP ${response.status}`)
+        }
 
-        if (
-            !uploadJson?.status ||
-            !uploadJson?.url
-        ) {
+        const data = await response.json()
+
+        console.log('UPSCALER:', {
+            status: data?.status,
+            fuente: data?.fuente_usada
+        })
+
+        if (!data?.status || !data?.resultado?.base64) {
             throw new Error(
-                uploadJson?.message ||
-                'Error al subir imagen'
+                data?.message ||
+                'La API no devolvió la imagen mejorada'
             )
         }
 
-        const upscale = await fetch(
-            `https://api.evogb.org/tools/upscale?method=url&url=${encodeURIComponent(uploadJson.url)}&key=${key}`
+        // Obtener Base64 de la respuesta
+        let resultadoBase64 = data.resultado.base64
+
+        // Quitar encabezado data:image/...;base64,
+        if (resultadoBase64.includes(',')) {
+            resultadoBase64 = resultadoBase64.split(',')[1]
+        }
+
+        // Convertir Base64 a Buffer
+        const resultado = Buffer.from(
+            resultadoBase64,
+            'base64'
         )
 
-        const type =
-            upscale.headers.get('content-type')
-
-        if (
-            type &&
-            type.includes('application/json')
-        ) {
-
-            const error =
-                await upscale.json()
-
-            throw new Error(
-                error?.message ||
-                'Error al mejorar'
-            )
-        }
-
-        const result =
-            Buffer.from(await upscale.arrayBuffer())
-
-        await sock.sendMessage(from, {
-            image: result,
-            caption:
+        // Enviar imagen mejorada
+        await sock.sendMessage(
+            from,
+            {
+                image: resultado,
+                caption:
 `✨ *IMAGEN MEJORADA*
 
 🖼️ Calidad optimizada con IA
+🔍 Escala: 4×
 
 > ${config.BOT_NAME}`
-        }, { quoted: m })
+            },
+            { quoted: m }
+        )
 
+        // Reacción final
         await sock.sendMessage(from, {
             react: {
                 text: '✅',
@@ -128,9 +130,8 @@ handler.run = async (sock, m, args) => {
             }
         })
 
-    } catch (e) {
-
-        console.log('HD ERROR:', e)
+    } catch (error) {
+        console.error('HD ERROR:', error)
 
         await sock.sendMessage(from, {
             react: {
@@ -139,18 +140,28 @@ handler.run = async (sock, m, args) => {
             }
         })
 
-        await sock.sendMessage(from, {
-            text:
-`❌ \`Error al mejorar la imagen\`
+        await sock.sendMessage(
+            from,
+            {
+                text:
+`❌ *Error al mejorar la imagen*
 
-${e.message || e}
+${error.message || error}
 
 > ${config.BOT_NAME}`
-        }, { quoted: m })
+            },
+            { quoted: m }
+        )
     }
 }
 
-handler.command = ['hd', 'upscale', 'remini', 'mejorar']
+handler.command = [
+    'hd',
+    'upscale',
+    'remini',
+    'mejorar'
+]
+
 handler.help = ['hd']
 handler.tags = ['herramientas']
 handler.menu = true
