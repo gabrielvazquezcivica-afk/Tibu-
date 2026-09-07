@@ -1,23 +1,27 @@
 import axios from 'axios'
 import config from '../config.js'
 
+const API_KEY = 'lem_87eb6b2f8d1fd1a413de398cf37608cf36b68691'
+
 let handler = {}
 
 handler.run = async (sock, m, args) => {
-    const from = m.key.remoteJid
 
+    const from = m.key.remoteJid
     const text = args.join(' ').trim()
 
     if (!text) {
         return sock.sendMessage(from, {
             text:
-`🦈 \`BRAT ANIMADO\`
-
-✏️ Escribe un texto para crear el sticker.
-
-Ejemplo:
-.brat Hola Tibu
-
+`╭─〔 🦈 BRAT ANIMADO 〕─╮
+│
+│ ✏️ Escribe un texto
+│    para crear el sticker.
+│
+│ Ejemplo:
+│ .bratvid Hola Tibu
+│
+╰──────────────────────╯
 > ${config.BOT_NAME}`
         }, { quoted: m })
     }
@@ -31,21 +35,38 @@ Ejemplo:
             }
         })
 
-        const apiKey = Buffer
-            .from('c3lscGh5LTZmMTUwZA==', 'base64')
-            .toString('utf-8')
+        const apiUrl =
+            `https://api.lempi.lat/tools/brat` +
+            `?text=${encodeURIComponent(text)}` +
+            `&color=Blanco` +
+            `&format=video` +
+            `&apikey=${encodeURIComponent(API_KEY)}`
 
-        const url =
-    `https://sylphyy.xyz/tools/brat?text=${encodeURIComponent(text)}&color=Negro&fondo=Blanco&type=Anim&api_key=${apiKey}`
-
-        const { data } = await axios.get(url, {
-            responseType: 'arraybuffer'
+        const { data } = await axios.get(apiUrl, {
+            timeout: 60000
         })
 
+        if (!data?.status || !data?.descarga) {
+            throw new Error(
+                data?.mensaje ||
+                data?.message ||
+                data?.error ||
+                'No se pudo crear el BRAT.'
+            )
+        }
+
+        // 📥 Descargar el video generado
+        const video = await axios.get(data.descarga, {
+            responseType: 'arraybuffer',
+            timeout: 120000
+        })
+
+        // 🎨 Enviar como sticker
         await sock.sendMessage(from, {
-            sticker: Buffer.from(data)
+            sticker: Buffer.from(video.data)
         }, { quoted: m })
 
+        // ✅ COMPLETADO
         await sock.sendMessage(from, {
             react: {
                 text: '✅',
@@ -55,7 +76,10 @@ Ejemplo:
 
     } catch (e) {
 
-        console.log('BRAT ERROR:', e)
+        console.error(
+            'BRAT ERROR:',
+            e.response?.data || e.message
+        )
 
         await sock.sendMessage(from, {
             react: {
@@ -66,8 +90,16 @@ Ejemplo:
 
         await sock.sendMessage(from, {
             text:
-`❌ \`Error al crear el sticker brat animado\`
-
+`╭─〔 ❌ BRAT 〕─╮
+│
+│ No pude crear el sticker.
+│
+│ ${e.response?.data?.mensaje ||
+   e.response?.data?.message ||
+   e.message ||
+   'Error desconocido.'}
+│
+╰────────────────╯
 > ${config.BOT_NAME}`
         }, { quoted: m })
     }
