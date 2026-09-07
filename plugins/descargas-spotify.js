@@ -1,7 +1,7 @@
 import axios from 'axios'
 import config from '../config.js'
 
-const API_KEY = 'TU_API_KEY'
+const API_KEY = 'lem_87eb6b2f8d1fd1a413de398cf37608cf36b68691'
 
 let handler = {}
 
