@@ -1,4 +1,6 @@
-import yts from 'yt-search'
+import axios from 'axios'
+
+const API_KEY = 'lem_87eb6b2f8d1fd1a413de398cf37608cf36b68691'
 
 global.playlistCache = global.playlistCache || {}
 
@@ -30,19 +32,25 @@ Ejemplo:
             }
         })
 
-        const result = await yts(query)
+        const url =
+            `https://api.lempi.lat/s/youtube?query=${encodeURIComponent(query)}&apikey=${API_KEY}`
 
-        const allVideos = result.videos
+        const response = await axios.get(url, {
+            timeout: 30000
+        })
+
+        const data = response.data
+
+        const allVideos =
+            data?.datos?.results?.videos || []
 
         if (!allVideos.length) {
             return sock.sendMessage(from, {
-                text: '❌ No encontré resultados'
+                text: '❌ No encontré resultados.'
             }, { quoted: m })
         }
 
         const videos = allVideos.slice(0, 9)
-
-        let texto = `🎵 RESULTADOS PARA: ${query.toUpperCase()}\n\n`
 
         const emojis = [
             '1️⃣','2️⃣','3️⃣',
@@ -50,17 +58,35 @@ Ejemplo:
             '7️⃣','8️⃣','9️⃣'
         ]
 
+        let texto =
+`🎵 RESULTADOS PARA: ${query.toUpperCase()}
+
+`
+
         videos.forEach((v, i) => {
-            texto += `${emojis[i]} ${v.title}\n`
-            texto += `> ⏱️ ${v.timestamp}\n\n`
+
+            texto +=
+                `${emojis[i]} ${String(v.title || 'Sin título')}\n`
+
+            if (v.duration) {
+                texto += `> ⏱️ ${v.duration}\n\n`
+            } else {
+                texto += `\n`
+            }
         })
 
-        texto += '🔄 Más resultados\n'
-        texto += '🎧 Reacciona con un número para descargar.'
+        texto +=
+            '🔄 Más resultados\n'
 
-        const msg = await sock.sendMessage(from, {
-            text: texto
-        }, { quoted: m })
+        texto +=
+            '🎧 Reacciona con un número para descargar.'
+
+        const msg =
+            await sock.sendMessage(
+                from,
+                { text: texto },
+                { quoted: m }
+            )
 
         global.playlistCache[msg.key.id] = {
             query,
@@ -77,10 +103,10 @@ Ejemplo:
 
     } catch (e) {
 
-        console.log('PLAYLIST ERROR:', e)
+        console.error('PLAYLIST ERROR:', e)
 
         await sock.sendMessage(from, {
-            text: `❌ ${e.message}`
+            text: `❌ Error: ${e.message}`
         }, { quoted: m })
     }
 }
