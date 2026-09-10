@@ -74,17 +74,21 @@ handler.run = async (sock, m, args, { commands }) => {
         diversión: '🐚',
         owner: '🚢',
         nsfw: '🥵',
-        stickers: '☀️'
+        stickers: '☀️',
+        frases: '⚜️',
+        rpg: 🏦'
     }
 
     const ordenTags = [
         'informacion',
         'on-off',
+        'frases',
         'grupo',
         'descargas',
         'buscador',
         'herramientas',
         'diversión',
+        'rpg',
         'owner',
         'stickers',
         'nsfw'
