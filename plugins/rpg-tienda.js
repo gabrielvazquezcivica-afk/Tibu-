@@ -7,9 +7,9 @@ const dbPath = path.join(
     'Rpg.json'
 )
 
-// ─────────────────────────────────────
+// ══════════════════════════════════════
 // BASE DE DATOS
-// ─────────────────────────────────────
+// ══════════════════════════════════════
 
 function leerDB() {
     try {
@@ -29,9 +29,9 @@ function guardarDB(db) {
     )
 }
 
-// ─────────────────────────────────────
+// ══════════════════════════════════════
 // LIMPIAR JID
-// ─────────────────────────────────────
+// ══════════════════════════════════════
 
 function limpiarJid(jid = '') {
     return String(jid)
@@ -39,9 +39,9 @@ function limpiarJid(jid = '') {
         .trim()
 }
 
-// ─────────────────────────────────────
+// ══════════════════════════════════════
 // OBJETOS DE LA TIENDA
-// ─────────────────────────────────────
+// ══════════════════════════════════════
 
 const objetos = {
 
@@ -84,7 +84,7 @@ const objetos = {
     diente: {
         nombre: '🦈 Diente de tiburón',
         precio: 2500,
-        descripcion: 'Un recuerdo de una peligrosa aventura marítima.'
+        descripcion: 'Un recuerdo de una aventura marítima.'
     },
 
     perla: {
@@ -96,7 +96,7 @@ const objetos = {
     corona: {
         nombre: '👑 Corona pirata',
         precio: 15000,
-        descripcion: 'Una antigua corona perteneciente a un capitán pirata.'
+        descripcion: 'Una antigua corona de un capitán pirata.'
     },
 
     reliquia: {
@@ -107,9 +107,9 @@ const objetos = {
 
 }
 
-// ─────────────────────────────────────
-// ALIAS DE OBJETOS
-// ─────────────────────────────────────
+// ══════════════════════════════════════
+// ALIAS
+// ══════════════════════════════════════
 
 const alias = {
 
@@ -140,11 +140,12 @@ const alias = {
 
     reliquia: 'reliquia',
     reliquiaantigua: 'reliquia'
+
 }
 
-// ─────────────────────────────────────
+// ══════════════════════════════════════
 // BUSCAR OBJETO
-// ─────────────────────────────────────
+// ══════════════════════════════════════
 
 function buscarObjeto(texto = '') {
 
@@ -158,11 +159,11 @@ function buscarObjeto(texto = '') {
     return alias[nombre] || null
 }
 
-// ─────────────────────────────────────
+// ══════════════════════════════════════
 // AGREGAR AL INVENTARIO
-// ─────────────────────────────────────
+// ══════════════════════════════════════
 
-function agregarObjeto(jugador, id) {
+function agregarInventario(jugador, id) {
 
     if (!Array.isArray(jugador.inventario)) {
         jugador.inventario = []
@@ -175,12 +176,12 @@ function agregarObjeto(jugador, id) {
     if (existente) {
 
         existente.cantidad =
-            (existente.cantidad || 0) + 1
+            Number(existente.cantidad || 0) + 1
 
     } else {
 
         jugador.inventario.push({
-            id,
+            id: id,
             nombre: objetos[id].nombre,
             cantidad: 1
         })
@@ -188,11 +189,11 @@ function agregarObjeto(jugador, id) {
     }
 }
 
-// ─────────────────────────────────────
+// ══════════════════════════════════════
 // HANDLER
-// ─────────────────────────────────────
+// ══════════════════════════════════════
 
-let handler = {}
+const handler = {}
 
 handler.run = async (sock, m, args) => {
 
@@ -209,13 +210,13 @@ handler.run = async (sock, m, args) => {
 
         const jugador = db[jugadorId]
 
-        // ─────────────────────────────
+        // ══════════════════════════════════
         // COMPROBAR REGISTRO
-        // ─────────────────────────────
+        // ══════════════════════════════════
 
         if (!jugador) {
 
-            return sock.sendMessage(
+            return await sock.sendMessage(
                 from,
                 {
                     text:
@@ -226,65 +227,41 @@ handler.run = async (sock, m, args) => {
             )
         }
 
-        // ─────────────────────────────
+        // ══════════════════════════════════
         // MOSTRAR TIENDA
-        // ─────────────────────────────
+        // ══════════════════════════════════
 
-        if (!args.length) {
+        if (!args || !args.length) {
 
-            const berries =
-                jugador.berries ?? 0
+            const berries = Number(
+                jugador.berries || 0
+            )
 
-            const texto = `\`🛒 TIENDA TIBU RPG\`
+            const texto = [
+                '`🛒 TIENDA TIBU RPG`',
+                '',
+                '`💰 Tus Berries: ' +
+                    berries.toLocaleString() +
+                    '`',
+                '',
+                '`🧿 talisman — 2,000 Berries`',
+                '`💍 anillo — 3,500 Berries`',
+                '`🪙 moneda — 1,500 Berries`',
+                '`💎 diamante — 8,000 Berries`',
+                '`🧪 elixir — 4,000 Berries`',
+                '`🏆 trofeo — 10,000 Berries`',
+                '`🦈 diente — 2,500 Berries`',
+                '`🐚 perla — 5,000 Berries`',
+                '`👑 corona — 15,000 Berries`',
+                '`🗿 reliquia — 20,000 Berries`',
+                '',
+                '`💡 Para comprar:`',
+                '`.comprar diamante`',
+                '',
+                '`📦 Los objetos se guardan en tu inventario.`'
+            ].join('\n')
 
-\`💰 Tus Berries: ${berries.toLocaleString()}\`
-
-\`🧿 talisman\`
-\`💰 2,000 Berries\`
-\`Un objeto misterioso de colección.\`
-
-\`💍 anillo\`
-\`💰 3,500 Berries\`
-\`Un antiguo anillo perteneciente a un pirata.\`
-
-\`🪙 moneda\`
-\`💰 1,500 Berries\`
-\`Una vieja moneda de colección.\`
-
-\`💎 diamante\`
-\`💰 8,000 Berries\`
-\`Una piedra preciosa de gran valor.\`
-
-\`🧪 elixir\`
-\`💰 4,000 Berries\`
-\`Un extraño líquido de origen desconocido.\`
-
-\`🏆 trofeo\`
-\`💰 10,000 Berries\`
-\`Un trofeo reservado para grandes aventureros.\`
-
-\`🦈 diente\`
-\`💰 2,500 Berries\`
-\`Un recuerdo de una peligrosa aventura marítima.\`
-
-\`🐚 perla\`
-\`💰 5,000 Berries\`
-\`Una hermosa perla encontrada en el océano.\`
-
-\`👑 corona\`
-\`💰 15,000 Berries\`
-\`Una antigua corona perteneciente a un capitán pirata.\`
-
-\`🗿 reliquia\`
-\`💰 20,000 Berries\`
-\`Una misteriosa reliquia de tiempos antiguos.\`
-
-\`💡 Para comprar:\`
-\`.comprar diamante`
-
-\`📦 Los objetos se guardan en tu inventario.\``
-
-            return sock.sendMessage(
+            return await sock.sendMessage(
                 from,
                 {
                     text: texto
@@ -293,9 +270,9 @@ handler.run = async (sock, m, args) => {
             )
         }
 
-        // ─────────────────────────────
+        // ══════════════════════════════════
         // BUSCAR OBJETO
-        // ─────────────────────────────
+        // ══════════════════════════════════
 
         const itemId = buscarObjeto(
             args.join(' ')
@@ -303,7 +280,7 @@ handler.run = async (sock, m, args) => {
 
         if (!itemId) {
 
-            return sock.sendMessage(
+            return await sock.sendMessage(
                 from,
                 {
                     text:
@@ -316,52 +293,61 @@ handler.run = async (sock, m, args) => {
 
         const item = objetos[itemId]
 
-        // ─────────────────────────────
+        // ══════════════════════════════════
         // BERRIES
-        // ─────────────────────────────
+        // ══════════════════════════════════
 
-        const berries =
-            Number(jugador.berries ?? 0)
+        const berries = Number(
+            jugador.berries || 0
+        )
 
-        // ─────────────────────────────
+        // ══════════════════════════════════
         // COMPROBAR DINERO
-        // ─────────────────────────────
+        // ══════════════════════════════════
 
         if (berries < item.precio) {
 
             const faltan =
                 item.precio - berries
 
-            return sock.sendMessage(
+            return await sock.sendMessage(
                 from,
                 {
-                    text:
-                        `\`❌ No tienes suficientes Berries.\`\n\n` +
-                        `\`💰 Tienes: ${berries.toLocaleString()} Berries\`\n` +
-                        `\`💵 Precio: ${item.precio.toLocaleString()} Berries\`\n` +
-                        `\`📉 Te faltan: ${faltan.toLocaleString()} Berries\``
+                    text: [
+                        '`❌ No tienes suficientes Berries.`',
+                        '',
+                        '`💰 Tienes: ' +
+                            berries.toLocaleString() +
+                            ' Berries`',
+                        '`💵 Precio: ' +
+                            item.precio.toLocaleString() +
+                            ' Berries`',
+                        '`📉 Te faltan: ' +
+                            faltan.toLocaleString() +
+                            ' Berries`'
+                    ].join('\n')
                 },
                 { quoted: m }
             )
         }
 
-        // ─────────────────────────────
+        // ══════════════════════════════════
         // REALIZAR COMPRA
-        // ─────────────────────────────
+        // ══════════════════════════════════
 
         jugador.berries =
             berries - item.precio
 
-        agregarObjeto(
+        agregarInventario(
             jugador,
             itemId
         )
 
         guardarDB(db)
 
-        // ─────────────────────────────
+        // ══════════════════════════════════
         // REACCIÓN
-        // ─────────────────────────────
+        // ══════════════════════════════════
 
         await sock.sendMessage(
             from,
@@ -373,9 +359,9 @@ handler.run = async (sock, m, args) => {
             }
         )
 
-        // ─────────────────────────────
-        // CANTIDAD EN INVENTARIO
-        // ─────────────────────────────
+        // ══════════════════════════════════
+        // CANTIDAD
+        // ══════════════════════════════════
 
         const inventarioItem =
             jugador.inventario.find(
@@ -383,25 +369,39 @@ handler.run = async (sock, m, args) => {
             )
 
         const cantidad =
-            inventarioItem?.cantidad || 1
+            Number(
+                inventarioItem?.cantidad || 1
+            )
 
-        // ─────────────────────────────
+        // ══════════════════════════════════
         // CONFIRMACIÓN
-        // ─────────────────────────────
+        // ══════════════════════════════════
 
-        const texto = `\`🛒 COMPRA REALIZADA\`
-
-\`📦 ${item.nombre}\`
-
-\`💰 Precio: ${item.precio.toLocaleString()} Berries\`
-
-\`📦 Cantidad: ${cantidad}\`
-
-\`💵 Berries restantes: ${jugador.berries.toLocaleString()}\`
-
-\`✅ ${item.descripcion}\`
-
-\`📦 El objeto fue agregado a tu inventario.\``
+        const texto = [
+            '`🛒 COMPRA REALIZADA`',
+            '',
+            '`📦 Objeto: ' +
+                item.nombre +
+                '`',
+            '',
+            '`💰 Precio: ' +
+                item.precio.toLocaleString() +
+                ' Berries`',
+            '',
+            '`📦 Cantidad: ' +
+                cantidad +
+                '`',
+            '',
+            '`💵 Berries restantes: ' +
+                jugador.berries.toLocaleString() +
+                '`',
+            '',
+            '`✅ ' +
+                item.descripcion +
+                '`',
+            '',
+            '`📦 El objeto fue agregado a tu inventario.`'
+        ].join('\n')
 
         await sock.sendMessage(
             from,
@@ -414,34 +414,42 @@ handler.run = async (sock, m, args) => {
     } catch (e) {
 
         console.error(
-            'ERROR TIENDA RPG:',
+            'ERROR RPG-TIENDA:',
             e
         )
 
-        await sock.sendMessage(
-            from,
-            {
-                react: {
-                    text: '❌',
-                    key: m.key
-                }
-            }
-        )
+        try {
 
-        await sock.sendMessage(
-            from,
-            {
-                text:
-                    '`❌ Ocurrió un error al procesar la tienda.`'
-            },
-            { quoted: m }
-        )
+            await sock.sendMessage(
+                from,
+                {
+                    react: {
+                        text: '❌',
+                        key: m.key
+                    }
+                }
+            )
+
+        } catch {}
+
+        try {
+
+            await sock.sendMessage(
+                from,
+                {
+                    text:
+                        '`❌ Ocurrió un error al procesar la tienda.`'
+                },
+                { quoted: m }
+            )
+
+        } catch {}
     }
 }
 
-// ─────────────────────────────────────
+// ══════════════════════════════════════
 // CONFIGURACIÓN
-// ─────────────────────────────────────
+// ══════════════════════════════════════
 
 handler.command = [
     'tienda',
