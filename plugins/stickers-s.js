@@ -129,7 +129,7 @@ handler.run = async (sock, m) => {
             from,
             {
                 react: {
-                    text: '🦈',
+                    text: '💙',
                     key: m.key
                 }
             }
