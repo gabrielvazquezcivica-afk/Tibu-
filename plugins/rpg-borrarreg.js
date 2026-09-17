@@ -1,98 +1,166 @@
 import fs from 'fs'
 import path from 'path'
 
-const dbPath = path.join(process.cwd(), 'database', 'Rpg.json')
+const regPath = path.join(process.cwd(), 'database', 'reg.json')
+const rpgPath = path.join(process.cwd(), 'database', 'Rpg.json')
 
-function leerDB() {
-    try {
-        return JSON.parse(fs.readFileSync(dbPath, 'utf8'))
-    } catch {
-        return {}
+function asegurarArchivos() {
+    const carpeta = path.join(process.cwd(), 'database')
+
+    if (!fs.existsSync(carpeta)) {
+        fs.mkdirSync(carpeta, { recursive: true })
+    }
+
+    if (!fs.existsSync(regPath)) {
+        fs.writeFileSync(regPath, '{}', 'utf8')
+    }
+
+    if (!fs.existsSync(rpgPath)) {
+        fs.writeFileSync(rpgPath, '{}', 'utf8')
     }
 }
 
-function guardarDB(db) {
+function leerJSON(ruta) {
+    asegurarArchivos()
+
+    const contenido = fs.readFileSync(ruta, 'utf8').trim()
+
+    if (!contenido) return {}
+
+    return JSON.parse(contenido)
+}
+
+function guardarJSON(ruta, datos) {
+    asegurarArchivos()
+
     fs.writeFileSync(
-        dbPath,
-        JSON.stringify(db, null, 2),
+        ruta,
+        JSON.stringify(datos, null, 2),
         'utf8'
     )
 }
 
-function limpiarJid(jid = '') {
-    return String(jid)
-        .replace(/:\d+@/, '@')
-        .trim()
+function obtenerJugador(m) {
+    return String(
+        m.key.participant ||
+        m.participant ||
+        m.key.remoteJid ||
+        ''
+    ).trim()
 }
 
 let handler = {}
 
 handler.run = async (sock, m) => {
     const from = m.key.remoteJid
-
-    const jugadorId = limpiarJid(
-        m.key.participant || m.key.remoteJid
-    )
+    const jugador = obtenerJugador(m)
 
     try {
-        const db = leerDB()
-
-        // ❌ NO EXISTE EL REGISTRO
-        if (!db[jugadorId]) {
+        if (!jugador) {
             return sock.sendMessage(
                 from,
                 {
-                    text: '`⚠️ No tienes un registro RPG.`'
+                    text: '`❌ No pude identificar tu usuario.`'
                 },
                 { quoted: m }
             )
         }
 
-        // 🗑️ ELIMINAR REGISTRO
-        delete db[jugadorId]
+        // =========================
+        // LEER AMBAS BASES
+        // =========================
 
-        guardarDB(db)
+        const registros = leerJSON(regPath)
+        const rpg = leerJSON(rpgPath)
 
-        await sock.sendMessage(from, {
-            react: {
-                text: '🗑️',
-                key: m.key
+        // =========================
+        // COMPROBAR REGISTRO
+        // =========================
+
+        if (!registros[jugador] && !rpg[jugador]) {
+            return sock.sendMessage(
+                from,
+                {
+                    text:
+`╭━━━〔 🌊 𝐑𝐏𝐆 〕━━━╮
+┃
+┃ ⚠️ No estás registrado.
+┃
+┃ Usa .registrar para comenzar.
+┃
+╰━━━━━━━━━━━━━━━━━━╯`
+                },
+                { quoted: m }
+            )
+        }
+
+        // =========================
+        // ELIMINAR REGISTRO
+        // =========================
+
+        delete registros[jugador]
+
+        // =========================
+        // ELIMINAR PERSONAJE RPG
+        // =========================
+
+        delete rpg[jugador]
+
+        // =========================
+        // GUARDAR AMBAS BASES
+        // =========================
+
+        guardarJSON(regPath, registros)
+        guardarJSON(rpgPath, rpg)
+
+        // =========================
+        // REACCIÓN
+        // =========================
+
+        await sock.sendMessage(
+            from,
+            {
+                react: {
+                    text: '🗑️',
+                    key: m.key
+                }
             }
-        })
+        )
+
+        // =========================
+        // MENSAJE
+        // =========================
 
         await sock.sendMessage(
             from,
             {
                 text:
-`╭━━━〔 🌊 𝐓𝐈𝐁𝐔 𝐑𝐏𝐆 〕━━━╮
+`╭━━━〔 🌊 𝐑𝐏𝐆 〕━━━╮
 ┃
-┃ 🗑️ 𝐑𝐄𝐆𝐈𝐒𝐓𝐑𝐎 𝐄𝐋𝐈𝐌𝐈𝐍𝐀𝐃𝐎
+┃ 🗑️ ¡𝐑𝐄𝐆𝐈𝐒𝐓𝐑𝐎 𝐄𝐋𝐈𝐌𝐈𝐍𝐀𝐃𝐎!
 ┃
-┃ Tu personaje RPG ha sido
-┃ eliminado correctamente.
+┃ Tu registro y personaje RPG
+┃ fueron eliminados correctamente.
 ┃
-┃ 🏴‍☠️ Si quieres volver a jugar:
-┃ usa .registrar
-┃
-╰━━━━━━━━━━━━━━━━━━╯`
+╰━━━━━━━━━━━━━━━━━━╯
+
+🌊 Puedes volver a registrarte cuando quieras.
+
+> Usa .registrar para comenzar de nuevo.`
             },
             { quoted: m }
         )
 
     } catch (e) {
-        console.error('ERROR BORRAR RPG:', e)
-
-        await sock.sendMessage(from, {
-            react: {
-                text: '❌',
-                key: m.key
-            }
-        })
+        console.error('ERROR BORRAR REGISTRO RPG:', e)
 
         await sock.sendMessage(
             from,
             {
-                text: '`❌ No pude eliminar tu registro RPG.`'
+                text:
+`❌ Ocurrió un error al borrar tu registro.
+
+> ${e.message || 'Error desconocido'}`
             },
             { quoted: m }
         )
@@ -101,8 +169,8 @@ handler.run = async (sock, m) => {
 
 handler.command = [
     'borrarregistro',
-    'borrarrpg',
-    'eliminarrpg'
+    'borrarreg',
+    'delregistro'
 ]
 
 handler.help = [
