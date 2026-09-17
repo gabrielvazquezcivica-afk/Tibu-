@@ -1,57 +1,112 @@
 import fs from 'fs'
 import path from 'path'
 
-const dbPath = path.join(process.cwd(), 'database', 'Rpg.json')
+const regPath = path.join(process.cwd(), 'database', 'reg.json')
+const rpgPath = path.join(process.cwd(), 'database', 'Rpg.json')
 
-function leerDB() {
-    try {
-        return JSON.parse(fs.readFileSync(dbPath, 'utf8'))
-    } catch {
-        return {}
+function asegurarArchivos() {
+    const carpeta = path.join(process.cwd(), 'database')
+
+    if (!fs.existsSync(carpeta)) {
+        fs.mkdirSync(carpeta, { recursive: true })
+    }
+
+    if (!fs.existsSync(regPath)) {
+        fs.writeFileSync(regPath, '{}', 'utf8')
+    }
+
+    if (!fs.existsSync(rpgPath)) {
+        fs.writeFileSync(rpgPath, '{}', 'utf8')
     }
 }
 
-function guardarDB(db) {
+function leerJSON(ruta) {
+    asegurarArchivos()
+
+    const contenido = fs.readFileSync(ruta, 'utf8').trim()
+
+    if (!contenido) return {}
+
+    return JSON.parse(contenido)
+}
+
+function guardarJSON(ruta, datos) {
+    asegurarArchivos()
+
     fs.writeFileSync(
-        dbPath,
-        JSON.stringify(db, null, 2),
+        ruta,
+        JSON.stringify(datos, null, 2),
         'utf8'
     )
 }
 
-function limpiarJid(jid = '') {
-    return String(jid)
-        .replace(/:\d+@/, '@')
-        .trim()
+function obtenerJugador(m) {
+    return String(
+        m.key.participant ||
+        m.participant ||
+        m.key.remoteJid ||
+        ''
+    ).trim()
 }
 
 let handler = {}
 
 handler.run = async (sock, m) => {
     const from = m.key.remoteJid
-
-    const jugador = limpiarJid(
-        m.key.participant || m.key.remoteJid
-    )
+    const jugador = obtenerJugador(m)
 
     try {
-        const db = leerDB()
-
-        // ❌ YA ESTÁ REGISTRADO
-        if (db[jugador]) {
+        if (!jugador) {
             return sock.sendMessage(
                 from,
                 {
-                    text: '`⚠️ Ya estás registrado en TIBU RPG.`'
+                    text: '`❌ No pude identificar tu usuario.`'
                 },
                 { quoted: m }
             )
         }
 
+        // =========================
+        // LEER REGISTROS
+        // =========================
+
+        const registros = leerJSON(regPath)
+
+        if (registros[jugador]) {
+            return sock.sendMessage(
+                from,
+                {
+                    text: '`⚠️ Ya estás registrado en el RPG.`'
+                },
+                { quoted: m }
+            )
+        }
+
+        // =========================
+        // NOMBRE
+        // =========================
+
         const nombre = m.pushName || 'Pirata'
 
-        // 🏴‍☠️ CREAR PERSONAJE
-        db[jugador] = {
+        // =========================
+        // GUARDAR REGISTRO
+        // =========================
+
+        registros[jugador] = {
+            id: jugador,
+            nombre: nombre,
+            registrado: Date.now()
+        }
+
+        guardarJSON(regPath, registros)
+
+        // =========================
+        // CREAR PERSONAJE RPG
+        // =========================
+
+        const rpg = leerJSON(rpgPath)
+
+        rpg[jugador] = {
             id: jugador,
             nombre: nombre,
 
@@ -78,35 +133,67 @@ handler.run = async (sock, m) => {
             creado: Date.now()
         }
 
-        guardarDB(db)
+        guardarJSON(rpgPath, rpg)
 
-        await sock.sendMessage(from, {
-            react: {
-                text: '🏴‍☠️',
-                key: m.key
+        // =========================
+        // VERIFICAR GUARDADO
+        // =========================
+
+        const registrosCheck = leerJSON(regPath)
+        const rpgCheck = leerJSON(rpgPath)
+
+        if (!registrosCheck[jugador]) {
+            throw new Error('No se pudo guardar el registro.')
+        }
+
+        if (!rpgCheck[jugador]) {
+            throw new Error('No se pudo crear el personaje RPG.')
+        }
+
+        // =========================
+        // REACCIÓN
+        // =========================
+
+        await sock.sendMessage(
+            from,
+            {
+                react: {
+                    text: '🏴‍☠️',
+                    key: m.key
+                }
             }
-        })
+        )
+
+        // =========================
+        // MENSAJE
+        // =========================
 
         await sock.sendMessage(
             from,
             {
                 text:
-`╭━━━〔 🌊 𝐓𝐈𝐁𝐔 𝐑𝐏𝐆 〕━━━╮
+`╭━━━〔 🌊 𝐑𝐏𝐆 〕━━━╮
 ┃
 ┃ 🏴‍☠️ ¡𝐑𝐄𝐆𝐈𝐒𝐓𝐑𝐎 𝐂𝐎𝐌𝐏𝐋𝐄𝐓𝐎!
 ┃
 ┃ 👤 ${nombre}
+┃
 ┃ ⭐ Nivel: 1
 ┃ ❤️ HP: 100/100
 ┃ 💰 Berries: 500
+┃
+┃ ⚔️ Ataque: 10
+┃ 🛡️ Defensa: 10
+┃ 💨 Velocidad: 10
 ┃
 ┃ 🗡️ Clase: Sin elegir
 ┃
 ╰━━━━━━━━━━━━━━━━━━╯
 
-🌊 ¡Bienvenido a TIBU RPG!
+🌊 ¡Bienvenido al RPG!
 
-> Usa .perfil para ver tu personaje.`
+> Usa .perfil para ver tu personaje.
+> Usa .clase para elegir tu clase.`
             },
             { quoted: m }
         )
@@ -117,7 +204,10 @@ handler.run = async (sock, m) => {
         await sock.sendMessage(
             from,
             {
-                text: '`❌ No pude registrarte en el RPG.`'
+                text:
+`❌ Error al registrar tu personaje.
+
+> ${e.message || 'Error desconocido'}`
             },
             { quoted: m }
         )
