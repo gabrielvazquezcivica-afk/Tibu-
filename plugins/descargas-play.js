@@ -1,119 +1,125 @@
+
 import axios from 'axios'
 import yts from 'yt-search'
 
-const API_KEY = 'lem_87eb6b2f8d1fd1a413de398cf37608cf36b68691'
+const API_KEY = process.env.LEMPI_API_KEY || 'PON_AQUI_TU_API_KEY'
 
 const handler = {}
 
-handler.run = async (sock, m, args) => {
+handler.run = async (sock, m, args = []) => {
+  const from = m.key.remoteJid
   const query = args.join(' ').trim()
 
-  if (!query) {  
-    return sock.sendMessage(  
-      m.key.remoteJid,  
-      {  
-        text: `🎵 \`Escribe el nombre de la canción.\`\n\n> Ejemplo: .play IMU`
-      },  
-      { quoted: m }  
-    )  
-  }  
+  if (!query) {
+    return sock.sendMessage(from, {
+      text: '🎵 `ESCRIBE EL NOMBRE DE LA CANCIÓN`\n\n> Ejemplo: .play IMU'
+    }, { quoted: m })
+  }
 
-  const from = m.key.remoteJid  
-
-  try {  
-    await sock.sendMessage(from, {  
-      react: { text: '⏳', key: m.key }  
-    })  
-
-    const search = await yts(query)  
-
-    if (!search.videos?.length) {  
-      return sock.sendMessage(  
-        from,  
-        { text: `❌ \`No encontré resultados para esa búsqueda.\`` },  
-        { quoted: m }  
-      )  
-    }  
-
-    const video = search.videos[0]  
-
-    // 📄 INFO + PORTADA DE LA CANCIÓN
+  try {
     await sock.sendMessage(from, {
-      image: { url: video.thumbnail },
-      caption: `
-╭───────────────────────╮
-│      🎵  REPRODUCCIÓN
-╰───────────────────────╯
-
- 📀 Título:  \`${video.title}\`
- 👤 Artista: \`${video.author.name}\`
- ⏱️ Duración:\` ${video.duration}\`
- 👁️ Vistas:  \`${video.views.toLocaleString()}\`
- 📅 Fecha:   \`${video.uploadDate || 'Desconocida'}\`
-
-🔗 ${video.url}
-
-▸ \`Cargando audio...\`
-      `,
-      quoted: m
+      react: { text: '🔎', key: m.key }
     })
 
-    // ⬇️ DESCARGAR CON LEMPI
-    const apiUrl =  
-        `https://api.lempi.lat/dl/yta` +  
-        `?url=${encodeURIComponent(video.url)}` +  
-        `&apikey=${API_KEY}`  
+    // 1. Buscar la canción
+    const search = await yts(query)
+    const video = search.videos?.[0]
 
-    const response = await axios.get(apiUrl, { timeout: 60000 })  
-    const data = response.data  
+    if (!video) {
+      return sock.sendMessage(from, {
+        text: '❌ `NO ENCONTRÉ RESULTADOS PARA ESA BÚSQUEDA`'
+      }, { quoted: m })
+    }
 
-    if (!data?.status) {  
-      console.log('LEMPi PLAY:', data)  
-      return sock.sendMessage(  
-        from,  
-        { text: `❌ \`La API no pudo descargar esta canción.\`` },  
-        { quoted: m }  
-      )  
-    }  
+    // 2. Iniciar la descarga de Lempi y enviar la portada
+    // al mismo tiempo para ahorrar tiempo total.
+    const apiPromise = axios.get(
+      'https://api.lempi.lat/dl/yta',
+      {
+        params: {
+          url: video.url,
+          apikey: API_KEY
+        },
+        timeout: 45000
+      }
+    )
 
-    const audioUrl = data?.datos?.url  
+    const infoPromise = sock.sendMessage(from, {
+      image: { url: video.thumbnail },
+      caption:
+        '╭───────────────────────╮\n' +
+        '│      🎵 REPRODUCCIÓN\n' +
+        '╰───────────────────────╯\n\n' +
+        `📀 Título: \`${video.title}\`\n` +
+        `👤 Artista: \`${video.author?.name || 'Desconocido'}\`\n` +
+        `⏱️ Duración: \`${video.duration || 'Desconocida'}\`\n` +
+        `👁️ Vistas: \`${Number(video.views || 0).toLocaleString()}\`\n` +
+        `📅 Fecha: \`${video.uploadDate || 'Desconocida'}\`\n\n` +
+        `🔗 ${video.url}\n\n` +
+        '▸ `Preparando audio...`'
+    }, { quoted: m })
 
-    if (!audioUrl) {  
-      console.log('RESPUESTA SIN AUDIO:', data)  
-      return sock.sendMessage(  
-        from,  
-        { text: `❌ \`La API no devolvió el archivo de audio.\`` },  
-        { quoted: m }  
-      )  
-    }  
+    // Esperar las dos operaciones en paralelo
+    const [apiResponse] = await Promise.all([
+      apiPromise,
+      infoPromise
+    ])
 
-    // 📥 DESCARGAR Y ENVIAR AUDIO
-    const audio = await axios.get(audioUrl, {  
-      responseType: 'arraybuffer',  
-      timeout: 60000  
-    })  
+    const data = apiResponse.data
 
-    await sock.sendMessage(  
-      from,  
-      {  
-        audio: Buffer.from(audio.data),  
-        mimetype: 'audio/mp4',  
-        fileName: `${video.title}.m4a`,  
-        ptt: false  
-      },  
-      { quoted: m }  
-    )  
+    if (!data?.status) {
+      console.error('LEMPi PLAY:', data)
 
-    await sock.sendMessage(from, { react: { text: '✅', key: m.key } })
+      return sock.sendMessage(from, {
+        text: '❌ `LA API NO PUDO PREPARAR ESTA CANCIÓN`'
+      }, { quoted: m })
+    }
 
-  } catch (error) {  
-    console.error('PLAY ERROR:', error)  
-    await sock.sendMessage(from, { react: { text: '❌', key: m.key } })  
-    await sock.sendMessage(  
-      from,  
-      { text: `❌ \`No se pudo descargar la música. Intenta nuevamente.\`` },  
-      { quoted: m }  
-    )  
+    const audioUrl =
+      data?.datos?.url ||
+      data?.resultado?.url ||
+      data?.datos?.downloadUrl ||
+      data?.resultado?.downloadUrl
+
+    if (!audioUrl || typeof audioUrl !== 'string') {
+      console.error('RESPUESTA SIN AUDIO:', data)
+
+      return sock.sendMessage(from, {
+        text: '❌ `LA API NO DEVOLVIÓ UNA URL DE AUDIO`'
+      }, { quoted: m })
+    }
+
+    // 3. Enviar usando la URL directamente.
+    // Evita descargar el archivo completo en un Buffer
+    // dentro de tu propio proceso antes de enviarlo.
+    await sock.sendMessage(from, {
+      audio: { url: audioUrl },
+      mimetype: 'audio/mp4',
+      fileName: `${video.title}.m4a`,
+      ptt: false
+    }, { quoted: m })
+
+    await sock.sendMessage(from, {
+      react: { text: '✅', key: m.key }
+    })
+
+  } catch (error) {
+    console.error(
+      'PLAY ERROR:',
+      error.response?.status || error.message
+    )
+
+    await sock.sendMessage(from, {
+      react: { text: '❌', key: m.key }
+    }).catch(() => {})
+
+    const aviso = error.code === 'ECONNABORTED'
+      ? '⏳ `LA API TARDÓ DEMASIADO. INTENTA DE NUEVO`'
+      : '❌ `NO SE PUDO ENVIAR EL AUDIO. INTENTA NUEVAMENTE`'
+
+    await sock.sendMessage(from, {
+      text: aviso
+    }, { quoted: m }).catch(() => {})
   }
 }
 
