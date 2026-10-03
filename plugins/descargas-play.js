@@ -2,7 +2,7 @@
 import axios from 'axios'
 import yts from 'yt-search'
 
-const API_KEY = process.env.LEMPI_API_KEY || 'PON_AQUI_TU_API_KEY'
+const API_KEY = process.env.LEMPI_API_KEY || 'lem_87eb6b2f8d1fd1a413de398cf37608cf36b68691'
 
 const handler = {}
 
