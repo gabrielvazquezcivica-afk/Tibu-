@@ -14,7 +14,7 @@ handler.run = async (sock, m, args = []) => {
     }, { quoted: m })
   }
 
-  if (API_KEY === 'PEGA_AQUI_TU_API_KEY_DE_EVOGB' || !API_KEY) {
+  if (!API_KEY || API_KEY === 'PEGA_AQUI_TU_API_KEY_DE_EVOGB') {
     return sock.sendMessage(from, {
       text: '❌ `CONFIGURA TU API KEY EN brat.js`'
     }, { quoted: m })
@@ -40,14 +40,16 @@ handler.run = async (sock, m, args = []) => {
     const data = response.data
 
     if (!data?.status || !data?.result_url) {
-      return sock.sendMessage(from, {
-        text: '❌ `NO SE PUDO GENERAR EL BRAT`'
-      }, { quoted: m })
+      throw new Error('La API no devolvió result_url')
     }
 
+    const image = await axios.get(data.result_url, {
+      responseType: 'arraybuffer',
+      timeout: 60000
+    })
+
     await sock.sendMessage(from, {
-      image: { url: data.result_url },
-      caption: `📝 ${text}`
+      sticker: Buffer.from(image.data)
     }, { quoted: m })
 
     await sock.sendMessage(from, {
@@ -55,7 +57,7 @@ handler.run = async (sock, m, args = []) => {
     })
 
   } catch (error) {
-    console.error('[BRAT]', error.code || error.message)
+    console.error('[BRAT]', error.response?.data || error.message)
 
     await sock.sendMessage(from, {
       react: { text: '❌', key: m.key }
