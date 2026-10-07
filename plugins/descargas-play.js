@@ -1,8 +1,7 @@
-
 import axios from 'axios'
 import yts from 'yt-search'
 
-const API_KEY = 'lem_87eb6b2f8d1fd1a413de398cf37608cf36b68691'
+const API_KEY = 'evogb-R1Mofv5G'
 
 const handler = {}
 
@@ -16,7 +15,7 @@ handler.run = async (sock, m, args = []) => {
     }, { quoted: m })
   }
 
-  if (API_KEY === 'PEGA_AQUI_TU_API_KEY' || !API_KEY) {
+  if (API_KEY === 'PEGA_AQUI_TU_API_KEY_DE_EVOGB' || !API_KEY) {
     return sock.sendMessage(from, {
       text: '❌ `CONFIGURA TU API KEY EN play.js`'
     }, { quoted: m })
@@ -51,11 +50,13 @@ handler.run = async (sock, m, args = []) => {
     }, { quoted: m })
 
     const responsePromise = axios.get(
-      'https://api.lempi.lat/dl/yta',
+      'https://api.evogb.org/dl/youtubeplay',
       {
         params: {
-          url: video.url,
-          apikey: API_KEY
+          key: API_KEY,
+          query: query,
+          type: 'audio',
+          quality: 'auto'
         },
         timeout: 60000
       }
@@ -75,12 +76,8 @@ handler.run = async (sock, m, args = []) => {
     }
 
     const audioUrl =
-      data?.datos?.url ||
-      data?.resultado?.url ||
-      data?.datos?.downloadUrl ||
-      data?.resultado?.downloadUrl ||
-      data?.datos?.download ||
-      data?.resultado?.download
+      data?.data?.download?.url ||
+      data?.data?.dl
 
     if (typeof audioUrl !== 'string' || !audioUrl) {
       return sock.sendMessage(from, {
@@ -90,8 +87,8 @@ handler.run = async (sock, m, args = []) => {
 
     await sock.sendMessage(from, {
       audio: { url: audioUrl },
-      mimetype: 'audio/mp4',
-      fileName: `${video.title.replace(/[\\/:*?"<>|]/g, '_')}.m4a`,
+      mimetype: 'audio/mpeg',
+      fileName: `${data?.data?.download?.filename || video.title.replace(/[\\/:*?"<>|]/g, '_')}`,
       ptt: false
     }, { quoted: m })
 
