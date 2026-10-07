@@ -1,113 +1,81 @@
 import axios from 'axios'
-import config from '../config.js'
 
-const API_KEY = 'lem_87eb6b2f8d1fd1a413de398cf37608cf36b68691'
+const API_KEY = 'evogb-R1Mofv5G'
 
-let handler = {}
+const handler = {}
 
-handler.run = async (sock, m, args) => {
+handler.run = async (sock, m, args = []) => {
+  const from = m.key.remoteJid
+  const text = args.join(' ').trim()
 
-    const from = m.key.remoteJid
-    const text = args.join(' ').trim()
+  if (!text) {
+    return sock.sendMessage(from, {
+      text: '📝 `ESCRIBE EL TEXTO`\n\n> Ejemplo: .bratanim Hola mundo'
+    }, { quoted: m })
+  }
 
-    if (!text) {
-        return sock.sendMessage(from, {
-            text:
-`╭─〔 🦈 BRAT ANIMADO 〕─╮
-│
-│ ✏️ Escribe un texto
-│    para crear el sticker.
-│
-│ Ejemplo:
-│ .bratvid Hola Tibu
-│
-╰──────────────────────╯
-> ${config.BOT_NAME}`
-        }, { quoted: m })
+  if (API_KEY === 'PEGA_AQUI_TU_API_KEY_DE_EVOGB' || !API_KEY) {
+    return sock.sendMessage(from, {
+      text: '❌ `CONFIGURA TU API KEY EN bratanim.js`'
+    }, { quoted: m })
+  }
+
+  try {
+    await sock.sendMessage(from, {
+      react: { text: '📝', key: m.key }
+    })
+
+    const response = await axios.get(
+      'https://api.evogb.org/tools/brat',
+      {
+        params: {
+          key: API_KEY,
+          text: text,
+          animated: 'true'
+        },
+        timeout: 60000
+      }
+    )
+
+    const data = response.data
+
+    if (!data?.status || !data?.result_url) {
+      return sock.sendMessage(from, {
+        text: '❌ `NO SE PUDO GENERAR EL BRAT ANIMADO`'
+      }, { quoted: m })
     }
 
-    try {
+    await sock.sendMessage(from, {
+      video: { url: data.result_url },
+      caption: `📝 ${text}`,
+      gifPlayback: true
+    }, { quoted: m })
 
-        await sock.sendMessage(from, {
-            react: {
-                text: '🎬',
-                key: m.key
-            }
-        })
+    await sock.sendMessage(from, {
+      react: { text: '✅', key: m.key }
+    })
 
-        const apiUrl =
-            `https://api.lempi.lat/tools/brat` +
-            `?text=${encodeURIComponent(text)}` +
-            `&color=Blanco` +
-            `&format=video` +
-            `&apikey=${encodeURIComponent(API_KEY)}`
+  } catch (error) {
+    console.error('[BRAT ANIMADO]', error.code || error.message)
 
-        const { data } = await axios.get(apiUrl, {
-            timeout: 60000
-        })
+    await sock.sendMessage(from, {
+      react: { text: '❌', key: m.key }
+    }).catch(() => {})
 
-        if (!data?.status || !data?.descarga) {
-            throw new Error(
-                data?.mensaje ||
-                data?.message ||
-                data?.error ||
-                'No se pudo crear el BRAT.'
-            )
-        }
+    const mensaje =
+      error.response?.status === 401
+        ? '❌ `LA API KEY FUE RECHAZADA`'
+        : '❌ `NO SE PUDO GENERAR EL BRAT ANIMADO`'
 
-        // 📥 Descargar el video generado
-        const video = await axios.get(data.descarga, {
-            responseType: 'arraybuffer',
-            timeout: 120000
-        })
-
-        // 🎨 Enviar como sticker
-        await sock.sendMessage(from, {
-            sticker: Buffer.from(video.data)
-        }, { quoted: m })
-
-        // ✅ COMPLETADO
-        await sock.sendMessage(from, {
-            react: {
-                text: '✅',
-                key: m.key
-            }
-        })
-
-    } catch (e) {
-
-        console.error(
-            'BRAT ERROR:',
-            e.response?.data || e.message
-        )
-
-        await sock.sendMessage(from, {
-            react: {
-                text: '❌',
-                key: m.key
-            }
-        })
-
-        await sock.sendMessage(from, {
-            text:
-`╭─〔 ❌ BRAT 〕─╮
-│
-│ No pude crear el sticker.
-│
-│ ${e.response?.data?.mensaje ||
-   e.response?.data?.message ||
-   e.message ||
-   'Error desconocido.'}
-│
-╰────────────────╯
-> ${config.BOT_NAME}`
-        }, { quoted: m })
-    }
+    await sock.sendMessage(from, {
+      text: mensaje
+    }, { quoted: m }).catch(() => {})
+  }
 }
 
-handler.command = ['bratvid']
-handler.help = ['bratvid <texto>']
-handler.tags = ['stickers']
+handler.command = ['bratanim', 'bratvideo']
+handler.help = ['bratanim <texto>']
+handler.tags = ['sticker']
 handler.menu = true
 
 export default handler
