@@ -1,5 +1,3 @@
-import config from '../config.js'
-
 let handler = {}
 
 handler.run = async (sock, m) => {
@@ -17,6 +15,7 @@ handler.run = async (sock, m) => {
     }
 
     let metadata
+
     try {
         metadata = await sock.groupMetadata(from)
     } catch {
@@ -69,30 +68,10 @@ handler.run = async (sock, m) => {
         const code = await sock.groupInviteCode(from)
         const link = `https://chat.whatsapp.com/${code}`
 
-        let pp = null
-        try {
-            pp = await sock.profilePictureUrl(from, 'image')
-        } catch {}
-
-        const texto =
-            `🔗 𝐑𝐀𝐃𝐀𝐑 𝐃𝐄 𝐈𝐍𝐕𝐈𝐓𝐀𝐂𝐈𝐎𝐍\n\n` +
-            `🌊 Grupo: ${metadata.subject}\n` +
-            `🦈 Capitán: @${sender.split('@')[0]}\n\n` +
-            `${link}\n\n` +
-            `> ${config.BOT_NAME}`
-
-        if (pp) {
-            await sock.sendMessage(from, {
-                image: { url: pp },
-                caption: texto,
-                mentions: [sender]
-            }, { quoted: m })
-        } else {
-            await sock.sendMessage(from, {
-                text: texto,
-                mentions: [sender]
-            }, { quoted: m })
-        }
+        await sock.sendMessage(from, {
+            text: `🔗 Aquí tienes el link @${sender.split('@')[0]}\n\n${link}`,
+            mentions: [sender]
+        }, { quoted: m })
 
     } catch (e) {
         console.log('LINK ERROR:', e)
