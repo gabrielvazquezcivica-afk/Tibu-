@@ -1,5 +1,5 @@
 const API_URL = 'https://api.evogb.org/search/pinterestv3'
-const API_KEY = process.env.EVOGB_API_KEY || 'TU_API_KEY'
+const API_KEY = process.env.EVOGB_API_KEY || 'evogb-R1Mofv5G'
 
 const handler = {}
 
