@@ -1,116 +1,79 @@
-const API_URL = 'https://api.lempi.lat/s/pin'
-const API_KEY = 'lem_87eb6b2f8d1fd1a413de398cf37608cf36b68691'
+const API_URL = 'https://api.evogb.org/search/pinterestv3'
+const API_KEY = process.env.EVOGB_API_KEY || 'TU_API_KEY'
 
 const handler = {}
 
-handler.run = async (sock, m, args) => {
+handler.run = async (sock, m, args = []) => {
     const from = m.key.remoteJid
     const query = args.join(' ').trim()
 
     if (!query) {
-        await sock.sendMessage(
-            from,
-            {
-                text: '📌 Escribe algo para buscar en Pinterest.\n\nEjemplo:\n.pin gatos'
-            },
-            { quoted: m }
-        )
-        return
+        return sock.sendMessage(from, {
+            text: '📌 Escribe algo para buscar en Pinterest.\n\nEjemplo:\n.pin gatos'
+        }, { quoted: m })
     }
 
     try {
-        // Reacción de búsqueda
         await sock.sendMessage(from, {
-            react: {
-                text: '🔎',
-                key: m.key
-            }
+            react: { text: '🔎', key: m.key }
         })
 
-        const url = `${API_URL}?q=${encodeURIComponent(query)}&limit=5&apikey=${API_KEY}`
+        const url = new URL(API_URL)
+        url.searchParams.set('key', API_KEY)
+        url.searchParams.set('query', query)
 
         const response = await fetch(url, {
             method: 'GET',
-            headers: {
-                'Content-Type': 'application/json'
-            }
+            signal: AbortSignal.timeout(45000)
         })
 
         if (!response.ok) {
-            throw new Error(`API respondió con HTTP ${response.status}`)
+            throw new Error(`Error HTTP ${response.status}`)
         }
 
         const data = await response.json()
 
-        if (!data?.status || !Array.isArray(data?.results) || data.results.length === 0) {
-            await sock.sendMessage(
-                from,
-                {
-                    text: `❌ No encontré resultados para: *${query}*`
-                },
-                { quoted: m }
-            )
-            return
+        if (!data?.status || !Array.isArray(data?.data?.images)) {
+            throw new Error('La API devolvió una respuesta inválida.')
         }
 
-        const resultados = data.results
-            .filter(item => item?.descarga)
+        const resultados = data.data.images
+            .filter(item => item?.images?.['736x'] || item?.images?.orig)
             .slice(0, 5)
 
-        if (resultados.length === 0) {
-            await sock.sendMessage(
-                from,
-                {
-                    text: '❌ No se encontraron imágenes disponibles.'
-                },
-                { quoted: m }
-            )
-            return
+        if (!resultados.length) {
+            return sock.sendMessage(from, {
+                text: `❌ No encontré imágenes para: *${query}*`
+            }, { quoted: m })
         }
 
-        // Primero manda el texto de la búsqueda
-        await sock.sendMessage(
-            from,
-            {
-                text: `📌 *Búsqueda en Pinterest*\n\n🔎 ${query}\n\n🖼️ Resultados: ${resultados.length}`
-            },
-            { quoted: m }
-        )
-
-        // Después manda solamente las imágenes
-        for (const item of resultados) {
-            try {
-                await sock.sendMessage(
-                    from,
-                    {
-                        image: {
-                            url: item.descarga
-                        }
-                    }
-                )
-            } catch (imageError) {
-                console.error('Error enviando imagen:', imageError)
-            }
-        }
-
-        // Reacción final
         await sock.sendMessage(from, {
-            react: {
-                text: '✅',
-                key: m.key
+            text: `📌 *PINTEREST*\n\n🔎 Búsqueda: ${query}\n🖼️ Resultados: ${resultados.length}`
+        }, { quoted: m })
+
+        for (const item of resultados) {
+            const imageUrl = item.images['736x'] || item.images.orig
+
+            try {
+                await sock.sendMessage(from, {
+                    image: { url: imageUrl },
+                    caption: item.title || ''
+                }, { quoted: m })
+            } catch (error) {
+                console.error('Error enviando imagen:', error.message)
             }
+        }
+
+        await sock.sendMessage(from, {
+            react: { text: '✅', key: m.key }
         })
 
     } catch (error) {
         console.error('ERROR PINTEREST:', error)
 
-        await sock.sendMessage(
-            from,
-            {
-                text: `❌ Ocurrió un error al buscar en Pinterest.\n\n> ${error.message}`
-            },
-            { quoted: m }
-        )
+        await sock.sendMessage(from, {
+            text: `❌ Error al buscar en Pinterest.\n\n${error.message}`
+        }, { quoted: m })
     }
 }
 
