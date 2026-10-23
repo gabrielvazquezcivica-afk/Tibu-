@@ -1,167 +1,90 @@
-import { downloadContentFromMessage } from '@whiskeysockets/baileys'
-import config from '../config.js'
+import axios from 'axios'
 
-const API_URL = 'https://api.lempi.lat/tools/upscaler'
-const API_KEY = 'lem_87eb6b2f8d1fd1a413de398cf37608cf36b68691'
+const API_URL = 'https://api-faa.my.id/faa/hdv4'
 
 const handler = {}
 
-async function descargar(media, tipo) {
-    const stream = await downloadContentFromMessage(media, tipo)
+handler.run = async (sock, m, args = []) => {
+  const from = m.key.remoteJid
 
-    const chunks = []
+  try {
+    // Obtener la imagen del mensaje o de la imagen citada
+    const quoted = m.message?.extendedTextMessage?.contextInfo?.quotedMessage
 
-    for await (const chunk of stream) {
+    const imageMessage =
+      m.message?.imageMessage ||
+      quoted?.imageMessage
+
+    if (!imageMessage) {
+      return sock.sendMessage(from, {
+        text: '🖼️ *MEJORAR IMAGEN A HD*\n\n' +
+          'Envía una imagen con el comando `.hd` en el pie de foto, ' +
+          'o responde a una imagen con `.hd`.'
+      }, { quoted: m })
+    }
+
+    await sock.sendMessage(from, {
+      react: { text: '⏳', key: m.key }
+    })
+
+    // Obtener el enlace de la imagen
+    let imageUrl = imageMessage.url
+
+    // Si no hay URL pública, descargar la imagen de WhatsApp
+    if (!imageUrl) {
+      const { downloadContentFromMessage } = await import('@whiskeysockets/baileys')
+      const stream = await downloadContentFromMessage(imageMessage, 'image')
+      const chunks = []
+
+      for await (const chunk of stream) {
         chunks.push(chunk)
+      }
+
+      const buffer = Buffer.concat(chunks)
+
+      // La API requiere una URL, por lo que no se puede enviar el buffer directamente.
+      // Se intenta usar la URL del mensaje si está disponible.
+      if (!buffer.length) {
+        throw new Error('No se pudo leer la imagen')
+      }
+
+      throw new Error('No se obtuvo una URL para procesar la imagen')
     }
 
-    return Buffer.concat(chunks)
+    const response = await axios.get(API_URL, {
+      params: { image: imageUrl },
+      timeout: 60000
+    })
+
+    const data = response.data
+    const resultUrl = data?.result?.image_upscaled
+
+    if (!data?.status || !resultUrl || !/^https?:\/\//i.test(resultUrl)) {
+      throw new Error('La API no devolvió una imagen mejorada')
+    }
+
+    await sock.sendMessage(from, {
+      image: { url: resultUrl },
+      caption: '✨ *IMAGEN MEJORADA A HD*\n\n> Procesada con éxito por Tibu Bot.'
+    }, { quoted: m })
+
+    await sock.sendMessage(from, {
+      react: { text: '✅', key: m.key }
+    })
+
+  } catch (error) {
+    await sock.sendMessage(from, {
+      react: { text: '❌', key: m.key }
+    }).catch(() => {})
+
+    await sock.sendMessage(from, {
+      text: '❌ *NO SE PUDO MEJORAR LA IMAGEN.*\n\n' +
+        'Verifica que la imagen tenga un enlace accesible e inténtalo de nuevo.'
+    }, { quoted: m }).catch(() => {})
+  }
 }
 
-handler.run = async (sock, m, args) => {
-    const from = m.key.remoteJid
-
-    const quoted =
-        m.message?.extendedTextMessage?.contextInfo?.quotedMessage
-
-    const image =
-        quoted?.imageMessage ||
-        m.message?.imageMessage
-
-    if (!image) {
-        return await sock.sendMessage(
-            from,
-            {
-                text:
-`🖼️ *Responde a una imagen con .hd*
-
-📌 Ejemplo:
-Responde a una foto escribiendo:
-.hd
-
-> ${config.BOT_NAME}`
-            },
-            { quoted: m }
-        )
-    }
-
-    try {
-        // Reacción mientras procesa
-        await sock.sendMessage(from, {
-            react: {
-                text: '⏳',
-                key: m.key
-            }
-        })
-
-        // Descargar imagen de WhatsApp
-        const buffer = await descargar(image, 'image')
-
-        // Convertir imagen a Base64
-        const base64 = buffer.toString('base64')
-
-        // Enviar a la API de Lempi
-        const response = await fetch(
-            `${API_URL}?multiplier=4&apikey=${encodeURIComponent(API_KEY)}`,
-            {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    image: `data:image/jpeg;base64,${base64}`
-                })
-            }
-        )
-
-        if (!response.ok) {
-            throw new Error(`API respondió con HTTP ${response.status}`)
-        }
-
-        const data = await response.json()
-
-        console.log('UPSCALER:', {
-            status: data?.status,
-            fuente: data?.fuente_usada
-        })
-
-        if (!data?.status || !data?.resultado?.base64) {
-            throw new Error(
-                data?.message ||
-                'La API no devolvió la imagen mejorada'
-            )
-        }
-
-        // Obtener Base64 de la respuesta
-        let resultadoBase64 = data.resultado.base64
-
-        // Quitar encabezado data:image/...;base64,
-        if (resultadoBase64.includes(',')) {
-            resultadoBase64 = resultadoBase64.split(',')[1]
-        }
-
-        // Convertir Base64 a Buffer
-        const resultado = Buffer.from(
-            resultadoBase64,
-            'base64'
-        )
-
-        // Enviar imagen mejorada
-        await sock.sendMessage(
-            from,
-            {
-                image: resultado,
-                caption:
-`✨ *IMAGEN MEJORADA*
-
-🖼️ Calidad optimizada con IA
-🔍 Escala: 4×
-
-> ${config.BOT_NAME}`
-            },
-            { quoted: m }
-        )
-
-        // Reacción final
-        await sock.sendMessage(from, {
-            react: {
-                text: '✅',
-                key: m.key
-            }
-        })
-
-    } catch (error) {
-        console.error('HD ERROR:', error)
-
-        await sock.sendMessage(from, {
-            react: {
-                text: '❌',
-                key: m.key
-            }
-        })
-
-        await sock.sendMessage(
-            from,
-            {
-                text:
-`❌ *Error al mejorar la imagen*
-
-${error.message || error}
-
-> ${config.BOT_NAME}`
-            },
-            { quoted: m }
-        )
-    }
-}
-
-handler.command = [
-    'hd',
-    'upscale',
-    'remini',
-    'mejorar'
-]
-
+handler.command = ['hd', 'enhance', 'upscale']
 handler.help = ['hd']
 handler.tags = ['herramientas']
 handler.menu = true
