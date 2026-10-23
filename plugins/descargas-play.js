@@ -1,7 +1,6 @@
 import axios from 'axios'
-import yts from 'yt-search'
 
-const API_KEY = 'evogb-R1Mofv5G'
+const API_URL = 'https://api-faa.my.id/faa/ytplay'
 
 const handler = {}
 
@@ -11,13 +10,7 @@ handler.run = async (sock, m, args = []) => {
 
   if (!query) {
     return sock.sendMessage(from, {
-      text: '🎵 `ESCRIBE EL NOMBRE DE LA CANCIÓN`\n\n> Ejemplo: .play IMU'
-    }, { quoted: m })
-  }
-
-  if (API_KEY === 'PEGA_AQUI_TU_API_KEY_DE_EVOGB' || !API_KEY) {
-    return sock.sendMessage(from, {
-      text: '❌ `CONFIGURA TU API KEY EN play.js`'
+      text: '🎵 *ESCRIBE EL NOMBRE DE LA CANCIÓN*\n\n> Ejemplo: .play IMU'
     }, { quoted: m })
   }
 
@@ -26,69 +19,89 @@ handler.run = async (sock, m, args = []) => {
       react: { text: '🔎', key: m.key }
     })
 
-    const search = await yts(query)
-    const video = search.videos?.[0]
-
-    if (!video) {
-      return sock.sendMessage(from, {
-        text: '❌ `NO ENCONTRÉ RESULTADOS`'
-      }, { quoted: m })
-    }
-
-    const portadaPromise = sock.sendMessage(from, {
-      image: { url: video.thumbnail },
-      caption:
-        '╭───────────────────────╮\n' +
-        '│      🎵 REPRODUCCIÓN\n' +
-        '╰───────────────────────╯\n\n' +
-        `📀 Título: \`${video.title}\`\n` +
-        `👤 Artista: \`${video.author?.name || 'Desconocido'}\`\n` +
-        `⏱️ Duración: \`${video.duration || 'Desconocida'}\`\n` +
-        `👁️ Vistas: \`${Number(video.views || 0).toLocaleString()}\`\n\n` +
-        `🔗 ${video.url}\n\n` +
-        '▸ `Preparando audio...`'
-    }, { quoted: m })
-
-    const responsePromise = axios.get(
-      'https://api.evogb.org/dl/youtubeplay',
-      {
-        params: {
-          key: API_KEY,
-          query: query,
-          type: 'audio',
-          quality: 'auto'
-        },
-        timeout: 60000
-      }
-    )
-
-    const [response] = await Promise.all([
-      responsePromise,
-      portadaPromise
-    ])
+    // Buscar la canción y obtener el enlace del MP3
+    const response = await axios.get(API_URL, {
+      params: { query },
+      timeout: 60000
+    })
 
     const data = response.data
+    const song = data?.result
 
-    if (!data?.status) {
-      return sock.sendMessage(from, {
-        text: '❌ `NO SE PUDO OBTENER EL AUDIO. INTENTA MÁS TARDE.`'
+    if (!data?.status || !song?.mp3) {
+      await sock.sendMessage(from, {
+        text: '❌ *NO SE ENCONTRÓ LA CANCIÓN O NO SE OBTUVO EL MP3.*'
+      }, { quoted: m })
+
+      await sock.sendMessage(from, {
+        react: { text: '❌', key: m.key }
+      })
+      return
+    }
+
+    const title = song.title || query
+    const author = song.author || 'Desconocido'
+
+    const duration = song.duration_timestamp ||
+      (typeof song.duration === 'number'
+        ? `${Math.floor(song.duration / 60)}:${String(song.duration % 60).padStart(2, '0')}`
+        : 'Desconocida')
+
+    const views = Number(song.views || 0).toLocaleString('es-MX')
+    const thumbnail = song.thumbnail
+    const videoUrl = song.url || ''
+
+    const caption =
+      '╭━━━〔 🎵 REPRODUCCIÓN 〕━━━╮\n' +
+      `│ 📀 Título: ${title}\n` +
+      `│ 👤 Artista: ${author}\n` +
+      `│ ⏱️ Duración: ${duration}\n` +
+      `│ 👁️ Vistas: ${views}\n` +
+      '╰━━━━━━━━━━━━━━━━━━━━━━╯\n\n' +
+      (videoUrl ? `🔗 ${videoUrl}\n\n` : '') +
+      '▸ Preparando audio...'
+
+    // Enviar la tarjeta de información
+    if (thumbnail) {
+      try {
+        await sock.sendMessage(from, {
+          image: { url: thumbnail },
+          caption
+        }, { quoted: m })
+      } catch {
+        await sock.sendMessage(from, {
+          text: caption
+        }, { quoted: m })
+      }
+    } else {
+      await sock.sendMessage(from, {
+        text: caption
       }, { quoted: m })
     }
 
-    const audioUrl =
-      data?.data?.download?.url ||
-      data?.data?.dl
+    // Descargar el MP3 desde la URL proporcionada por API Faa
+    const audioResponse = await axios.get(song.mp3, {
+      responseType: 'arraybuffer',
+      timeout: 120000,
+      maxContentLength: 50 * 1024 * 1024,
+      maxBodyLength: 50 * 1024 * 1024
+    })
 
-    if (typeof audioUrl !== 'string' || !audioUrl) {
-      return sock.sendMessage(from, {
-        text: '❌ `LA API NO DEVOLVIÓ EL ENLACE DEL AUDIO`'
-      }, { quoted: m })
+    const audio = Buffer.from(audioResponse.data)
+
+    if (!audio.length) {
+      throw new Error('El archivo de audio está vacío')
     }
 
+    const fileName = `${title}`
+      .replace(/[\\/:*?"<>|]/g, '_')
+      .slice(0, 150) + '.mp3'
+
+    // Enviar el audio directamente al chat
     await sock.sendMessage(from, {
-      audio: { url: audioUrl },
+      audio,
       mimetype: 'audio/mpeg',
-      fileName: `${data?.data?.download?.filename || video.title.replace(/[\\/:*?"<>|]/g, '_')}`,
+      fileName,
       ptt: false
     }, { quoted: m })
 
@@ -97,24 +110,30 @@ handler.run = async (sock, m, args = []) => {
     })
 
   } catch (error) {
-    console.error('[PLAY]', error.code || error.message)
+    console.error(
+      '[PLAY]',
+      error.response?.status || error.code || error.message
+    )
 
     await sock.sendMessage(from, {
       react: { text: '❌', key: m.key }
     }).catch(() => {})
 
-    const mensaje = error.code === 'EHOSTUNREACH' ||
-      error.code === 'ECONNREFUSED' ||
-      error.code === 'ENOTFOUND' ||
-      error.code === 'ETIMEDOUT' ||
-      error.code === 'ECONNABORTED'
-        ? '⏳ `EL SERVICIO DE DESCARGA NO ESTÁ DISPONIBLE. INTENTA MÁS TARDE.`'
-        : error.response?.status === 401
-          ? '❌ `LA API KEY FUE RECHAZADA`'
-          : '❌ `NO SE PUDO PROCESAR EL AUDIO`'
+    let message = '❌ *NO SE PUDO PROCESAR EL AUDIO. INTENTA MÁS TARDE.*'
+
+    if (
+      error.code === 'ECONNABORTED' ||
+      error.code === 'ETIMEDOUT'
+    ) {
+      message = '⏳ *LA API TARDÓ DEMASIADO. INTENTA DE NUEVO.*'
+    } else if (error.response?.status === 429) {
+      message = '⏳ *LA API ESTÁ RECIBIENDO DEMASIADAS SOLICITUDES.*'
+    } else if (error.response?.status >= 500) {
+      message = '⚠️ *EL SERVICIO DE AUDIO NO ESTÁ DISPONIBLE.*'
+    }
 
     await sock.sendMessage(from, {
-      text: mensaje
+      text: message
     }, { quoted: m }).catch(() => {})
   }
 }
