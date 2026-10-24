@@ -1,120 +1,76 @@
-import config from '../config.js'
+import axios from 'axios'
 
-const API_URL = 'https://api.lempi.lat/ai/deepseek'
-const API_KEY = 'lem_87eb6b2f8d1fd1a413de398cf37608cf36b68691'
+const API_URL = 'https://api-faa.my.id/faa/gemini-ai'
 
 const handler = {}
 
-handler.run = async (sock, m, args) => {
-    const from = m.key.remoteJid
-    const text = args.join(' ').trim()
+handler.run = async (sock, m, args = []) => {
+  const from = m.key.remoteJid
+  const text = args.join(' ').trim()
 
-    if (!text) {
-        return await sock.sendMessage(
-            from,
-            {
-                text:
-`🤖 *TIBU AI*
+  if (!text) {
+    return sock.sendMessage(from, {
+      text:
+        '🤖 *GEMINI AI — TIBU BOT*\n\n' +
+        'Escribe una pregunta o mensaje para la IA.\n\n' +
+        '*Ejemplo:*\n' +
+        '.gemini ¿Cuánto es 25 × 8?\n' +
+        '.ia ¿Cómo puedo aprender JavaScript?'
+    }, { quoted: m })
+  }
 
-💬 Escribe algo para hablar con la IA.
+  try {
+    await sock.sendMessage(from, {
+      react: { text: '🤔', key: m.key }
+    })
 
-📌 *Ejemplo:*
-.ia Hola, ¿cómo estás?
+    const response = await axios.get(API_URL, {
+      params: { text },
+      timeout: 60000
+    })
 
-> ${config.BOT_NAME}`
-            },
-            { quoted: m }
-        )
+    const data = response.data
+    const answer = data?.result
+
+    if (!data?.status || typeof answer !== 'string' || !answer.trim()) {
+      throw new Error('La API no devolvió una respuesta válida')
     }
 
-    try {
-        // Reacción mientras procesa
-        await sock.sendMessage(from, {
-            react: {
-                text: '💭',
-                key: m.key
-            }
-        })
+    await sock.sendMessage(from, {
+      text:
+        `🤖 *GEMINI AI*\n\n` +
+        `${answer.trim()}\n\n` +
+        `> ✨ Powered by Tibu Bot`
+    }, { quoted: m })
 
-        // Consultar DeepSeek
-        const url =
-            `${API_URL}?q=${encodeURIComponent(text)}` +
-            `&apikey=${encodeURIComponent(API_KEY)}`
+    await sock.sendMessage(from, {
+      react: { text: '✅', key: m.key }
+    })
 
-        const response = await fetch(url, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        })
+  } catch (error) {
+    await sock.sendMessage(from, {
+      react: { text: '❌', key: m.key }
+    }).catch(() => {})
 
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`)
-        }
+    let message = '❌ *GEMINI NO PUDO RESPONDER.*'
 
-        const data = await response.json()
-
-        console.log('DEEPSEEK:', data)
-
-        if (
-            !data?.status ||
-            !data?.resultado?.respuesta
-        ) {
-            throw new Error('La API no devolvió una respuesta válida')
-        }
-
-        const respuesta = data.resultado.respuesta
-
-        // Enviar respuesta
-        await sock.sendMessage(
-            from,
-            {
-                text:
-`🤖 *TIBU AI*
-
-${respuesta}
-
-> ${config.BOT_NAME}`
-            },
-            { quoted: m }
-        )
-
-        // Reacción final
-        await sock.sendMessage(from, {
-            react: {
-                text: '🦈',
-                key: m.key
-            }
-        })
-
-    } catch (error) {
-        console.error('DEEPSEEK ERROR:', error)
-
-        await sock.sendMessage(from, {
-            react: {
-                text: '❌',
-                key: m.key
-            }
-        })
-
-        await sock.sendMessage(
-            from,
-            {
-                text:
-`❌ *Error al obtener respuesta*
-
-No pude obtener una respuesta de TIBU AI.
-
-> ${config.BOT_NAME}`
-            },
-            { quoted: m }
-        )
+    if (error.code === 'ECONNABORTED') {
+      message += '\n\nLa solicitud tardó demasiado. Inténtalo de nuevo.'
+    } else if (error.response?.status === 429) {
+      message += '\n\nHay demasiadas solicitudes. Espera un momento.'
+    } else if (!error.response) {
+      message += '\n\nNo se pudo conectar con la API.'
     }
+
+    await sock.sendMessage(from, {
+      text: message
+    }, { quoted: m }).catch(() => {})
+  }
 }
 
-handler.command = ['ia', 'chatgpt', 'gpt']
-handler.help = ['ia <texto>']
-handler.tags = ['herramientas']
+handler.command = ['gemini', 'ia']
+handler.help = ['gemini <pregunta>', 'ia <pregunta>']
+handler.tags = ['ia']
 handler.menu = true
 
 export default handler
